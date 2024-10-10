@@ -33,7 +33,7 @@ const RegisterForm = () => {
     };
 
     return (
-        <div className="card w-full max-w-4xl bg-blue-100 shadow-xl mx-auto bg-opacity-70">
+        <div className="card w-full max-w-4xl bg-blue-100 shadow-xl mx-auto bg-opacity-60">
             <div className="card-body">
                 <h2 className="card-title justify-center text-2xl font-bold mb-4">Register</h2>
 
