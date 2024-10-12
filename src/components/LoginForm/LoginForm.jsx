@@ -37,7 +37,7 @@ const LoginForm = () => {
 
                 {error && <div className="alert alert-error">{error}</div>}
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit}>``
                     {/* Username */}
                     <div className="form-control w-full max-w-xs">
                         <label className="label">

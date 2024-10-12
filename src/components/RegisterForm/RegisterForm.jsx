@@ -75,7 +75,7 @@ const RegisterForm = () => {
                         </div>
 
                         {/* Gender */}
-                        <div className="form-control">
+                        {/* <div className="form-control">
                             <label className="label">
                                 <span className="label-text">Gender</span>
                             </label>
@@ -91,10 +91,10 @@ const RegisterForm = () => {
                                 <option value="Female">Female</option>
                                 <option value="Other">Other</option>
                             </select>
-                        </div>
+                        </div> */}
 
                         {/* Date of Birth */}
-                        <div className="form-control">
+                        {/* <div className="form-control">
                             <label className="label">
                                 <span className="label-text">Date of Birth</span>
                             </label>
@@ -106,7 +106,7 @@ const RegisterForm = () => {
                                 className="input input-bordered"
                                 required
                             />
-                        </div>
+                        </div> */}
 
                         {/* Email */}
                         <div className="form-control">
