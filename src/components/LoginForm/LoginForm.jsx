@@ -31,13 +31,13 @@ const LoginForm = () => {
     };
 
     return (
-        <div className="card w-96 bg-base-100 shadow-xl">
+        <div className="card w-96 bg-blue-100 shadow-xl bg-opacity-60 ">
             <div className="card-body">
                 <h2 className="card-title justify-center text-2xl font-bold mb-4">Login</h2>
 
                 {error && <div className="alert alert-error">{error}</div>}
 
-                <form onSubmit={handleSubmit}>``
+                <form onSubmit={handleSubmit}>
                     {/* Username */}
                     <div className="form-control w-full max-w-xs">
                         <label className="label">
@@ -80,7 +80,7 @@ const LoginForm = () => {
                 <div className="mt-4 text-center">
                     <p className="text-sm">
                         Do not have an account?{" "}
-                        <Link to="/register" className="text-blue-500 hover:underline">
+                        <Link to="/register" className="text-blue-700 hover:underline">
                             Register here
                         </Link>
                     </p>

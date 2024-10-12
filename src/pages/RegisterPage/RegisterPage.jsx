@@ -1,7 +1,7 @@
 import React from 'react';
 import RegisterForm from '../../components/RegisterForm/RegisterForm';
 import picture from '../../assets/img/pngegg.png';
-import videoBg from '../../assets/video/manim.mp4';
+import videoBg from '../../assets/video/manim1.mp4';
 
 const Register = () => {
     return (
@@ -16,7 +16,7 @@ const Register = () => {
                 autoPlay
                 loop
                 muted
-                className="absolute top-0 left-0 w-full h-full object-cover blur-sm"
+                className="absolute top-0 left-0 w-full h-full object-cover blur-md"
             >
                 <source src={videoBg} type="video/mp4" />
                 Your browser does not support the video tag.
