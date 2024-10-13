@@ -50,7 +50,7 @@ const Profile = () => {
       <h1 className="text-3xl font-bold mb-6">Profile</h1>
       <form
         onSubmit={handleSubmit}
-        className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md"
+        className="bg-white p-6 rounded-lg shadow-md"
       >
         <div className="mb-4">
           <label className="block text-sm font-medium mb-1">Full Name</label>
