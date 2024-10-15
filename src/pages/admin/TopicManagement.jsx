@@ -25,6 +25,7 @@ const TopicManagement = () => {
         setSubjects(data);
       } catch (error) {
         console.error("Error fetching subjects:", error);
+        message.error("Failed to fetch subjects."); // Show error message
       }
     };
 
@@ -34,17 +35,20 @@ const TopicManagement = () => {
   // Fetch chapters from the API when the selected subject changes
   useEffect(() => {
     const fetchChapters = async () => {
-      try {
-        const data = await getChaptersBySubjectId(selectedSubjectId); // Fetch chapters for the selected subject
-        setChapters(data);
-      } catch (error) {
-        console.error("Error fetching chapters:", error);
+      if (selectedSubjectId) {
+        try {
+          const data = await getChaptersBySubjectId(selectedSubjectId); // Fetch chapters for the selected subject
+          setChapters(data);
+        } catch (error) {
+          console.error("Error fetching chapters:", error);
+          message.error("Failed to fetch chapters."); // Show error message
+        }
+      } else {
+        setChapters([]); // Reset chapters if no subject is selected
       }
     };
 
-    if (selectedSubjectId) {
-      fetchChapters();
-    }
+    fetchChapters();
   }, [selectedSubjectId]);
 
   // Fetch topics when the selected chapter changes
@@ -56,6 +60,7 @@ const TopicManagement = () => {
           setTopics(data);
         } catch (error) {
           console.error("Error fetching topics:", error);
+          message.error("Failed to fetch topics."); // Show error message
         }
       } else {
         setTopics([]); // Reset topics if no chapter is selected
@@ -79,13 +84,13 @@ const TopicManagement = () => {
         // Fetch updated topics
         const updatedTopics = await getTopicsByChapterId(newTopic.chapterId);
         setTopics(updatedTopics); // Update topics state
-        message.success("Topic added successfully!");
+        message.success("Topic added successfully!"); // Show success message
       } catch (error) {
         console.error("Error adding topic:", error);
-        message.error("Failed to add topic");
+        message.error("Failed to add topic."); // Show error message
       }
     } else {
-      message.warning("Please fill all fields");
+      message.warning("Please fill all fields."); // Show warning if fields are empty
     }
   };
 
@@ -134,7 +139,7 @@ const TopicManagement = () => {
       <Button
         type="primary"
         onClick={() => setIsModalVisible(true)}
-        disabled={!selectedChapterId}
+        disabled={!selectedChapterId} // Disable if no chapter is selected
       >
         Add Topic
       </Button>
