@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getChaptersBySubjectId } from "../../services/chapterService"; // Assuming this service exists
 import { getSubjects } from "../../services/subjectService"; // Assuming this service exists
-import { getTopicsByChapterId, addTopic } from "../../services/topicService"; // Assuming these services exist
+import { getTopicsByChapterId} from "../../services/topicService"; // Assuming these services exist
 import {
   getProblemTypesByTopicId,
   addProblemType,
