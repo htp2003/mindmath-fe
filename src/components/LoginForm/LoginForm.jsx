@@ -30,7 +30,8 @@ const LoginForm = () => {
       // Check user roles
       const roles =
         decodedToken[
-        "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+
+          "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
         ] || [];
       console.log("User Roles:", roles); // Log the user roles
 
