@@ -43,3 +43,10 @@ export const login = async (credentials) => {
   }
 };
 
+
+// Logout function
+export const logout = () => {
+  localStorage.removeItem("token");
+  // Nếu bạn có bất kỳ state nào khác cần xóa, hãy thêm vào đây
+};
+
