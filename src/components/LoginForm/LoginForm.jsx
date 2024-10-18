@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login } from "../../services/authServices";
-
+import { toast } from "react-hot-toast";
 const LoginForm = () => {
   const [formData, setFormData] = useState({
     userName: "",
@@ -36,10 +36,30 @@ const LoginForm = () => {
 
       // Navigate based on roles
       if (roles.includes("Admin") && roles.includes("Teacher")) {
+        toast.success(`Welcome, admin ${decodedToken.Fullname}!`, {
+          style: {
+            borderRadius: "10px",
+            background: "#333",
+            color: "#fff",
+          },
+          position: "top-center",
+          duration: 4000,
+          id: "welcome-toast-admin",
+        });
         navigate("/admin"); // Navigate to admin page if Admin or Teacher
       } else if (roles.includes("Teacher")) {
+        toast.success(`Welcome, ${decodedToken.Fullname}!`, {
+          position: "top-center",
+          duration: 4000,
+          id: "welcome-toast",
+        });
         navigate("/"); // Navigate to home page if only Teacher
       } else {
+        toast.success(`Welcome, ${decodedToken.Fullname}!`, {
+          position: "top-center",
+          duration: 4000,
+          id: "welcome-toast",
+        });
         navigate("/"); // Default navigation for other roles
       }
 

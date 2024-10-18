@@ -1,4 +1,5 @@
 import React from "react";
+import "./App.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import UserLayout from "./layouts/UserLayout";
 import Home from "./pages/Home";
@@ -14,6 +15,8 @@ import TopicManagement from "./pages/admin/TopicManagement";
 import ProblemTypeManagement from "./pages/admin/ProblemTypeManagement";
 import ProtectedRoute from "./components/ProtectRoute/ProtectedRoute";
 import AuthRoute from "./components/AuthRoute/AuthRoute"; // Import AuthRoute
+import { Toaster } from "react-hot-toast";
+
 
 function App() {
   return (
@@ -60,7 +63,9 @@ function App() {
           }
         />
       </Routes>
+      <Toaster />
     </Router>
+
   );
 }
 
