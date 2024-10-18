@@ -1,12 +1,19 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { logout } from "../services/authServices"; // Đảm bảo đường dẫn này chính xác
 
 const Navbar = () => {
-  const [dropdownOpen, setDropdownOpen] = useState(false); // State cho dropdown
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const navigate = useNavigate();
 
-  // Toggle dropdown khi click vào avatar
   const toggleDropdown = () => {
     setDropdownOpen(!dropdownOpen);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setDropdownOpen(false);
+    navigate('/login'); // Chuyển hướng về trang đăng nhập sau khi đăng xuất
   };
 
   return (
@@ -38,17 +45,16 @@ const Navbar = () => {
               <Link
                 to="/profile"
                 className="block px-4 py-2 text-gray-800 hover:bg-gray-200"
-                onClick={() => setDropdownOpen(false)} // Đóng dropdown khi click
+                onClick={() => setDropdownOpen(false)}
               >
                 Profile
               </Link>
-              <Link
-                to="/logout"
-                className="block px-4 py-2 text-gray-800 hover:bg-gray-200"
-                onClick={() => setDropdownOpen(false)} // Đóng dropdown khi click
+              <button
+                className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-200"
+                onClick={handleLogout}
               >
                 Logout
-              </Link>
+              </button>
             </div>
           )}
         </div>
