@@ -6,7 +6,6 @@ const AuthRoute = ({ children }) => {
     const token = localStorage.getItem("token");
 
     if (token) {
-        // If user is already logged in, redirect them to homepage
         return <Navigate to="/" />;
     }
 

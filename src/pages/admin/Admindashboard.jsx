@@ -1,13 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   DesktopOutlined,
   UserOutlined,
   BookOutlined,
   ReadOutlined,
-  SolutionOutlined, // Import SolutionOutlined for Problem Type Management
-} from "@ant-design/icons"; // Import icons for menu items
-import { Avatar, Breadcrumb, Layout, Menu, theme } from "antd";
-import { Link, Outlet } from "react-router-dom"; // Make sure to include Outlet
+  SolutionOutlined,
+} from "@ant-design/icons";
+import { Avatar, Breadcrumb, Layout, Menu, Button, theme } from "antd";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -19,7 +19,6 @@ function getItem(label, key, icon) {
   };
 }
 
-// Updated items array to include Topic Management and Problem Type Management
 const items = [
   getItem(
     <Link to="/admin/categories">Subject Management</Link>,
@@ -37,22 +36,48 @@ const items = [
     <BookOutlined />
   ),
   getItem(
-    <Link to="/admin/topics">Topic Management</Link>, // New Topic Management Item
+    <Link to="/admin/topics">Topic Management</Link>,
     "4",
-    <ReadOutlined /> // Icon for Topic Management
+    <ReadOutlined />
   ),
   getItem(
-    <Link to="/admin/problem-types">Problem Type Management</Link>, // New Problem Type Management Item
+    <Link to="/admin/problem-types">Problem Type Management</Link>,
     "5",
-    <SolutionOutlined /> // Icon for Problem Type Management
+    <SolutionOutlined />
   ),
 ];
 
 const AdminDashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+
+  useEffect(() => {
+    // Check if token exists and extract user information
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      try {
+        const decodedToken = JSON.parse(atob(token.split('.')[1]));
+        setUser(decodedToken); // Save the decoded token user data
+      } catch (error) {
+        console.error("Error decoding token:", error);
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // Remove token on logout
+    navigate("/login"); // Redirect to login page
+  };
+
+  const handleHome = () => {
+    navigate("/"); // Navigate to homepage
+  };
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -70,8 +95,27 @@ const AdminDashboard = () => {
         />
       </Sider>
       <Layout>
-        <Header style={{ padding: 0, background: colorBgContainer }}>
-          {/* Header content can go here */}
+        <Header style={{ padding: "0 16px", background: colorBgContainer, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Home Button */}
+          <Button type="primary" onClick={handleHome}>
+            Home
+          </Button>
+
+          {/* Admin Info (Avatar and Full Name) */}
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Avatar
+              size="large"
+              style={{ backgroundColor: "#87d068", marginRight: "16px" }}
+              icon={<UserOutlined />}
+            />
+            {/* Display the user's full name from the token */}
+            <span>{user ? user.Fullname : "Loading..."}</span>
+          </div>
+
+          {/* Logout Button */}
+          <Button type="danger" onClick={handleLogout}>
+            Logout
+          </Button>
         </Header>
         <Content style={{ margin: "0 16px" }}>
           <Breadcrumb style={{ margin: "16px 0" }}>

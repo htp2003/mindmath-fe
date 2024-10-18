@@ -1,31 +1,31 @@
 @keyframes colorChange {
     0% {
-        color: #d78888;
+        color: #2b2424;
         /* Đỏ */
     }
 
     25% {
-        color: #8de58d;
+        color: #3e873e;
         /* Xanh lá cây */
     }
 
     50% {
-        color: #9696e8;
+        color: #1e1e38;
         /* Xanh dương */
     }
 
     75% {
-        color: #514b1b;
+        color: #c440b0;
         /* Tím */
     }
 
     100% {
-        color: #e9e0ed;
+        color: #281232;
         /* Quay lại đỏ */
     }
 }
 
 .animate-colorChange {
-    animation: colorChange 5s infinite;
+    animation: colorChange 10s infinite;
     /* Thay đổi thời gian nếu cần */
 }
