@@ -4,9 +4,9 @@ import Navbar from "../components/Navbar";
 
 const UserLayout = () => {
   return (
-    <div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-100 ">
       <Navbar />
-      <div className="p-4">
+      <div className="container mx-auto px-4 py-8">
         <Outlet />
       </div>
     </div>
