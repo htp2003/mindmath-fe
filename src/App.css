@@ -29,3 +29,8 @@
     animation: colorChange 10s infinite;
     /* Thay đổi thời gian nếu cần */
 }
+
+/* Thêm vào file CSS global của bạn */
+ul {
+    list-style-type: none;
+}
