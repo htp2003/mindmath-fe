@@ -3,7 +3,7 @@ import "./App.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import UserLayout from "./layouts/UserLayout";
 import Home from "./pages/Home";
-import Wallet from "./pages/Wallet";
+import UserDashboard from "./pages/UserDashboard";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/admin/Admindashboard";
 import UserManagement from "./pages/admin/UserManager";
@@ -16,6 +16,7 @@ import ProblemTypeManagement from "./pages/admin/ProblemTypeManagement";
 import ProtectedRoute from "./components/ProtectRoute/ProtectedRoute";
 import AuthRoute from "./components/AuthRoute/AuthRoute"; // Import AuthRoute
 import { Toaster } from "react-hot-toast";
+import CreateVideo from "./pages/CreateVideo/CreateVideo";
 
 
 function App() {
@@ -25,8 +26,9 @@ function App() {
         {/* Layout cho người dùng */}
         <Route path="/" element={<UserLayout />}>
           <Route index element={<Home />} />
-          <Route path="wallet" element={<Wallet />} />
+          <Route path="user-dashboard" element={<UserDashboard />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="create" element={<CreateVideo />} />
         </Route>
 
         {/* Layout cho Admin, bảo vệ bằng ProtectedRoute */}

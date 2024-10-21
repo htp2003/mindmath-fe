@@ -43,6 +43,72 @@ export const login = async (credentials) => {
   }
 };
 
+// Get current user function
+export const getCurrentUser = () => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    return null;
+  }
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (error) {
+    console.error("Error decoding token:", error);
+    return null;
+  }
+};
+
+// Update user profile function
+export const updateUserProfile = async (userData) => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("No token found");
+  }
+
+  try {
+    const decodedToken = JSON.parse(atob(token.split('.')[1]));
+    const userId = decodedToken.Id || decodedToken.id;
+
+    console.log("Updating user profile for ID:", userId);
+    console.log("Update data:", userData);
+
+    const response = await fetch(`https://mindmath.azurewebsites.net/api/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        fullname: userData.fullname,
+        email: userData.email,
+        phoneNumber: userData.phoneNumber
+      }),
+    });
+
+    console.log("Response status:", response.status);
+    console.log("Response headers:", response.headers);
+
+    const responseText = await response.text();
+    console.log("Response text:", responseText);
+
+    if (!response.ok) {
+      throw new Error(`Failed to update profile: ${response.status} - ${responseText}`);
+    }
+
+    let updatedData;
+    try {
+      updatedData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.warn("Response is not valid JSON:", responseText);
+      updatedData = { message: "Profile updated successfully" };
+    }
+
+    console.log("Profile updated successfully:", updatedData);
+    return updatedData;
+  } catch (error) {
+    console.error("Error in updateUserProfile:", error);
+    throw error;
+  }
+};
 
 // Logout function
 export const logout = () => {

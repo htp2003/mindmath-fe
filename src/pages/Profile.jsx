@@ -1,17 +1,45 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { storage } from "../firebase"; // Import firebase storage
-import { ref, uploadBytes } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getCurrentUser, updateUserProfile } from "../services/authServices";
 
 const Profile = () => {
   const [avatar, setAvatar] = useState(null);
+  const [avatarURL, setAvatarURL] = useState("https://via.placeholder.com/150");
   const [fullname, setFullname] = useState("");
-  const [gender, setGender] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [password, setPassword] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = () => {
+    try {
+      setLoading(true);
+      const userData = getCurrentUser();
+      console.log("Fetched user data:", userData);
+      if (userData) {
+        setFullname(userData.Fullname || userData.fullname || "");
+        setUsername(userData.UserName || userData.userName || "");
+        setEmail(userData.Email || userData.email || "");
+        setPhoneNumber(userData.PhoneNumber || userData.phoneNumber || "");
+      } else {
+        setError("No user data found");
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+      setError("Failed to fetch user data: " + err.message);
+      setLoading(false);
+    }
+  };
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     setAvatar(file);
@@ -22,8 +50,11 @@ const Profile = () => {
       const avatarRef = ref(storage, `avatars/${avatar.name}`);
       uploadBytes(avatarRef, avatar)
         .then((snapshot) => {
-          alert("Avatar uploaded successfully!");
-          setAvatar(null);
+          getDownloadURL(snapshot.ref).then((url) => {
+            setAvatarURL(url);
+            alert("Avatar uploaded successfully!");
+            setAvatar(null);
+          });
         })
         .catch((error) => {
           console.error("Error uploading avatar: ", error);
@@ -31,139 +62,183 @@ const Profile = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle form submission logic (e.g., save user data)
-    console.log({
-      fullname,
-      gender,
-      dateOfBirth,
-      username,
-      email,
-      phoneNumber,
-      password,
-    });
+    try {
+      console.log("Submitting user data:", {
+        fullname,
+        email,
+        phoneNumber,
+      });
+      const result = await updateUserProfile({
+        fullname,
+        email,
+        phoneNumber,
+      });
+      console.log("Update result:", result);
+      alert(result.message || "Profile updated successfully!");
+      // Optionally refresh user data after update
+      fetchUserData();
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setError("Failed to update profile: " + err.message);
+    }
   };
+
+  const handleResetPassword = (e) => {
+    e.preventDefault();
+    // Handle password reset logic (you might want to create a separate API endpoint for this)
+    console.log({
+      oldPassword,
+      newPassword,
+    });
+    setShowResetPassword(false);
+    setOldPassword("");
+    setNewPassword("");
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6">Profile</h1>
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-lg shadow-md"
-      >
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Full Name</label>
-          <input
-            type="text"
-            value={fullname}
-            onChange={(e) => setFullname(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            required
-          />
-        </div>
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <form onSubmit={handleSubmit}>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Full Name</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={fullname}
+                    onChange={(e) => setFullname(e.target.value)}
+                    className="input input-bordered"
+                    required
+                  />
+                </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Gender</label>
-          <select
-            value={gender}
-            onChange={(e) => setGender(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            required
-          >
-            <option value="" disabled>
-              Select Gender
-            </option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">
-            Date of Birth
-          </label>
-          <input
-            type="date"
-            value={dateOfBirth}
-            onChange={(e) => setDateOfBirth(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            required
-          />
-        </div>
+                <div className="form-control mt-4">
+                  <label className="label">
+                    <span className="label-text">Email</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input input-bordered"
+                    required
+                  />
+                </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Username</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            required
-          />
-        </div>
+                <div className="form-control mt-4">
+                  <label className="label">
+                    <span className="label-text">Phone Number</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="input input-bordered"
+                    required
+                  />
+                </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            required
-          />
-        </div>
+                <div className="form-control mt-6">
+                  <button type="submit" className="btn btn-neutral">
+                    Save Profile
+                  </button>
+                </div>
+              </form>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Phone Number</label>
-          <input
-            type="tel"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            required
-          />
-        </div>
+              <div className="divider">OR</div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            required
-          />
-        </div>
+              <button
+                onClick={() => setShowResetPassword(true)}
+                className="btn btn-info w-full"
+              >
+                Reset Password
+              </button>
+            </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">
-            Upload Avatar
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="w-full border border-gray-300 rounded-lg p-2"
-            required
-          />
-          <button
-            type="button"
-            onClick={handleUpload}
-            className="mt-2 p-2 bg-blue-500 text-white rounded-lg"
-          >
-            Upload
-          </button>
+            <div className="flex flex-col items-center">
+              <img
+                src={avatarURL}
+                alt="Avatar"
+                className="rounded-full w-32 h-32 mb-4"
+              />
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text">Upload Avatar</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="file-input file-input-bordered w-full"
+                />
+                <button
+                  type="button"
+                  onClick={handleUpload}
+                  className="btn btn-neutral mt-2"
+                >
+                  Upload
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <button
-          type="submit"
-          className="w-full p-2 bg-green-500 text-white rounded-lg"
-        >
-          Save Profile
-        </button>
-      </form>
+      {showResetPassword && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Reset Password</h3>
+            <form onSubmit={handleResetPassword}>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Old Password</span>
+                </label>
+                <input
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  className="input input-bordered"
+                  required
+                />
+              </div>
+              <div className="form-control mt-4">
+                <label className="label">
+                  <span className="label-text">New Password</span>
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="input input-bordered"
+                  required
+                />
+              </div>
+              <div className="modal-action">
+                <button type="submit" className="btn btn-neutral">
+                  Reset Password
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setShowResetPassword(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
