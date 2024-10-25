@@ -1,6 +1,6 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-const API_URL = "https://mindmath.azurewebsites.net/api/auths"; // Base API URL
+const API_URL = "https://mindmath.azurewebsites.net/api/auths";
 
 // Register function
 export const register = async (userData) => {
@@ -31,9 +31,9 @@ export const login = async (credentials) => {
     const data = await response.json();
 
     if (data.accessToken) {
-      localStorage.setItem("token", data.accessToken); // Store token
-      const decodedToken = jwtDecode(data.accessToken); // Decode the token
-      return { ...data, decodedToken }; // Return data along with the decoded token
+      localStorage.setItem("token", data.accessToken);
+      const decodedToken = jwtDecode(data.accessToken);
+      return { ...data, decodedToken };
     } else {
       throw new Error("No token received");
     }
@@ -50,15 +50,15 @@ export const getCurrentUser = () => {
     return null;
   }
   try {
-    return JSON.parse(atob(token.split('.')[1]));
+    return jwtDecode(token);
   } catch (error) {
     console.error("Error decoding token:", error);
     return null;
   }
 };
 
-// Update user profile function
-export const updateUserProfile = async (userData) => {
+// Change password function
+export const changePassword = async (oldPassword, newPassword) => {
   const token = localStorage.getItem("token");
   if (!token) {
     throw new Error("No token found");
@@ -68,41 +68,108 @@ export const updateUserProfile = async (userData) => {
     const decodedToken = JSON.parse(atob(token.split('.')[1]));
     const userId = decodedToken.Id || decodedToken.id;
 
-    console.log("Updating user profile for ID:", userId);
-    console.log("Update data:", userData);
-
-    const response = await fetch(`https://mindmath.azurewebsites.net/api/users/${userId}`, {
+    const response = await fetch(`https://mindmath.azurewebsites.net/api/users/${userId}/password`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        fullname: userData.fullname,
-        email: userData.email,
-        phoneNumber: userData.phoneNumber
+        oldPassword,
+        newPassword
       }),
     });
 
-    console.log("Response status:", response.status);
-    console.log("Response headers:", response.headers);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to change password');
+    }
 
+    const responseData = await response.json().catch(() => ({
+      message: "Password changed successfully"
+    }));
+
+    return responseData;
+  } catch (error) {
+    console.error("Error in changePassword:", error);
+    throw error;
+  }
+};
+
+// Update user profile function
+export const updateUserProfile = async (userData) => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No token found");
+    }
+
+    const decodedToken = jwtDecode(token);
+    const userId = decodedToken.Id || decodedToken.id;
+
+    if (!userId) {
+      throw new Error("User ID not found in token");
+    }
+
+    const formData = new FormData();
+    formData.append('fullname', userData.fullname);
+    formData.append('email', userData.email);
+    formData.append('phoneNumber', userData.phoneNumber);
+
+    if (userData.avatar) {
+      formData.append('File', userData.avatar);
+    }
+
+    const response = await fetch(`https://mindmath.azurewebsites.net/api/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+
+    // Get the response text first
     const responseText = await response.text();
-    console.log("Response text:", responseText);
 
     if (!response.ok) {
-      throw new Error(`Failed to update profile: ${response.status} - ${responseText}`);
+      throw new Error(`Failed to update profile: ${responseText}`);
     }
 
     let updatedData;
     try {
-      updatedData = JSON.parse(responseText);
+      // Try to parse the response text as JSON if it's not empty
+      updatedData = responseText ? JSON.parse(responseText) : {};
     } catch (parseError) {
       console.warn("Response is not valid JSON:", responseText);
-      updatedData = { message: "Profile updated successfully" };
+      // If parsing fails, create a default response object
+      updatedData = {
+        message: "Profile updated successfully",
+        // If you have the avatar URL in the decoded token or response headers
+        avatarUrl: response.headers.get('X-Avatar-Url') || decodedToken.avatarUrl
+      };
     }
 
-    console.log("Profile updated successfully:", updatedData);
+    // Get updated user data after successful update
+    const newUserResponse = await fetch(`https://mindmath.azurewebsites.net/api/users/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (newUserResponse.ok) {
+      const newUserData = await newUserResponse.json();
+      // Update localStorage with new user data if needed
+      if (newUserData.accessToken) {
+        localStorage.setItem("token", newUserData.accessToken);
+      }
+      // Merge the new user data with our update response
+      updatedData = {
+        ...updatedData,
+        ...newUserData,
+        avatarUrl: newUserData.avatarUrl || newUserData.AvatarUrl
+      };
+    }
+
     return updatedData;
   } catch (error) {
     console.error("Error in updateUserProfile:", error);
@@ -110,9 +177,8 @@ export const updateUserProfile = async (userData) => {
   }
 };
 
+
 // Logout function
 export const logout = () => {
   localStorage.removeItem("token");
-  // Nếu bạn có bất kỳ state nào khác cần xóa, hãy thêm vào đây
 };
-
