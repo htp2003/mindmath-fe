@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { logout } from "../services/authServices";
+import { logout, getCurrentUserInfo } from "../services/authServices";
 import { Home, Wallet, User, LogOut, Video, Search, BookOpen, Menu, Bell } from "lucide-react";
-
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -28,17 +28,39 @@ const Navbar = () => {
     }
   };
 
+  const fetchUserData = async () => {
+    try {
+      const userData = await getCurrentUserInfo();
+      if (userData) {
+        setUser(prev => ({
+          ...prev,
+          ...userData
+        }));
+        // Chỉ set avatarUrl nếu có và hợp lệ
+        if (userData.avatar && userData.avatar.includes('mindmath.blob.core.windows.net')) {
+          setAvatarUrl(userData.avatar);
+          setAvatarError(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
       const decodedToken = decodeToken(token);
       setUser(decodedToken);
-      setAvatarUrl(decodedToken.Avatar);
+
+      // Fetch user data khi component mount
+      fetchUserData();
     }
 
     // Thêm event listener cho sự kiện cập nhật avatar
     const handleAvatarUpdate = (event) => {
       setAvatarUrl(event.detail.avatarUrl);
+      setAvatarError(false); // Reset error state khi có update mới
     };
 
     window.addEventListener('avatarUpdate', handleAvatarUpdate);
@@ -48,6 +70,34 @@ const Navbar = () => {
       window.removeEventListener('avatarUpdate', handleAvatarUpdate);
     };
   }, []);
+
+  const handleImageError = () => {
+    setAvatarError(true);
+    setAvatarUrl(null);
+  };
+
+  const renderAvatar = (size = 'small') => {
+    const sizeClasses = size === 'small'
+      ? "h-8 w-8"
+      : "h-10 w-10";
+
+    if (avatarError || !avatarUrl) {
+      return (
+        <div className={`${sizeClasses} rounded-full bg-blue-600 flex items-center justify-center text-white font-medium`}>
+          {getInitials(user?.name || user?.Fullname || "U")}
+        </div>
+      );
+    }
+
+    return (
+      <img
+        className={`${sizeClasses} rounded-full object-cover border-2 border-gray-200`}
+        src={avatarUrl}
+        alt={user?.name || user?.Fullname}
+        onError={handleImageError}
+      />
+    );
+  };
 
   const handleLogout = () => {
     logout();
@@ -60,9 +110,7 @@ const Navbar = () => {
       <li className="list-none">
         <Link
           to={to}
-          className={`flex items-center px-4 py-2 rounded-lg ${isActive
-            ? "bg-blue-100 text-blue-700"
-            : "hover:bg-blue-50"
+          className={`flex items-center px-4 py-2 rounded-lg ${isActive ? "bg-blue-100 text-blue-700" : "hover:bg-blue-50"
             }`}
         >
           <Icon size={18} className="mr-2" />
@@ -82,6 +130,10 @@ const Navbar = () => {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  if (!user) {
+    return null; // hoặc render một skeleton/loading state
+  }
 
   return (
     <nav className="bg-white shadow-md">
@@ -103,7 +155,7 @@ const Navbar = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
-            {user ? (
+            {user && (
               <>
                 <button className="p-2 rounded-full hover:bg-gray-100">
                   <Bell size={20} className="text-gray-600" />
@@ -115,28 +167,24 @@ const Navbar = () => {
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                   >
                     <div className="flex items-center">
-                      {user.Avatar ? (
-                        <img
-                          className="h-8 w-8 rounded-full object-cover border-2 border-gray-200"
-                          src={avatarUrl || user.Avatar}
-                          alt={user.name}
-                        />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
-                          {getInitials(user.name)}
-                        </div>
-                      )}
+                      {renderAvatar('small')}
                       <div className="ml-3 hidden md:block text-left">
-                        <p className="text-sm font-medium text-gray-700">{user.name}</p>
+                        <p className="text-sm font-medium text-gray-700">
+                          {user.name || user.Fullname}
+                        </p>
                         <p className="text-xs text-gray-500">View profile</p>
                       </div>
                     </div>
                   </button>
                   {isMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                       <div className="px-4 py-2 border-b">
-                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.name || user.Fullname}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {user.email || user.Email}
+                        </p>
                       </div>
                       <Link
                         to="/profile"
@@ -154,13 +202,6 @@ const Navbar = () => {
                   )}
                 </div>
               </>
-            ) : (
-              <Link
-                to="/login"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-              >
-                Sign in
-              </Link>
             )}
           </div>
           <div className="-mr-2 flex items-center sm:hidden">
@@ -183,25 +224,19 @@ const Navbar = () => {
             <NavLink to="/videos" icon={BookOpen}>Videos</NavLink>
             <NavLink to="/user-dashboard" icon={Wallet}>Dashboard</NavLink>
           </div>
-          {user ? (
+          {user && (
             <div className="pt-4 pb-3 border-t border-gray-200">
               <div className="flex items-center px-4">
                 <div className="flex-shrink-0">
-                  {user.Avatar ? (
-                    <img
-                      className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
-                      src={avatarUrl || user.Avatar}
-                      alt={user.name}
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
-                      {getInitials(user.name)}
-                    </div>
-                  )}
+                  {renderAvatar('large')}
                 </div>
                 <div className="ml-3">
-                  <div className="text-base font-medium text-gray-800">{user.name}</div>
-                  <div className="text-sm font-medium text-gray-500">{user.email}</div>
+                  <div className="text-base font-medium text-gray-800">
+                    {user.name || user.Fullname}
+                  </div>
+                  <div className="text-sm font-medium text-gray-500">
+                    {user.email || user.Email}
+                  </div>
                 </div>
               </div>
               <div className="mt-3 space-y-1">
@@ -218,15 +253,6 @@ const Navbar = () => {
                   <LogOut size={18} className="inline mr-2" /> Sign out
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="pt-4 pb-3 border-t border-gray-200">
-              <Link
-                to="/login"
-                className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-              >
-                Sign in
-              </Link>
             </div>
           )}
         </div>
