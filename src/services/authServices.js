@@ -1,7 +1,124 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 const API_URL = "https://mindmath.azurewebsites.net/api/auths";
+const API_TOKEN_URL = "https://mindmath.azurewebsites.net/api";
 
+export const getCurrentUserInfo = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("No token found");
+    }
+
+    const decodedToken = jwtDecode(token);
+    const userId = decodedToken.Id || decodedToken.id;
+
+    if (!userId) {
+      throw new Error("User ID not found in token");
+    }
+
+    const response = await fetch(`${API_TOKEN_URL}/users/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch user info');
+    }
+
+    const userData = await response.json();
+    return userData;
+  } catch (error) {
+    console.error("Error getting user info:", error);
+    throw error;
+  }
+};
+
+export const getNewToken = async () => {
+  try {
+    const currentToken = localStorage.getItem("token");
+    const refreshToken = localStorage.getItem("refreshToken");
+
+    if (!currentToken || !refreshToken) {
+      throw new Error("No tokens found");
+    }
+
+    const response = await fetch(`${API_TOKEN_URL}/tokens`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        accessToken: currentToken,
+        refreshToken: refreshToken
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to get new token");
+    }
+
+    const data = await response.json();
+
+    if (data.accessToken) {
+      localStorage.setItem("token", data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
+      return data.accessToken;
+    }
+
+    throw new Error("No access token received");
+  } catch (error) {
+    console.error("Error getting new token:", error);
+    throw error;
+  }
+};
+
+
+export const refreshAccessToken = async () => {
+  try {
+    const currentToken = localStorage.getItem("token");
+    const refreshToken = localStorage.getItem("refreshToken");
+
+    if (!currentToken || !refreshToken) {
+      throw new Error("No tokens found");
+    }
+
+    const response = await fetch(`${API_URL}/tokens`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        accessToken: currentToken,
+        refreshToken: refreshToken
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to refresh token");
+    }
+
+    const data = await response.json();
+
+    if (data.accessToken) {
+      localStorage.setItem("token", data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
+      return data.accessToken;
+    }
+
+    throw new Error("No access token received");
+  } catch (error) {
+    console.error("Error refreshing token:", error);
+    // Nếu refresh token fail, logout user
+    logout();
+    throw error;
+  }
+};
 // Register function
 export const register = async (userData) => {
   try {
@@ -32,6 +149,10 @@ export const login = async (credentials) => {
 
     if (data.accessToken) {
       localStorage.setItem("token", data.accessToken);
+      // Lưu thêm refresh token
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
       const decodedToken = jwtDecode(data.accessToken);
       return { ...data, decodedToken };
     } else {
@@ -45,11 +166,12 @@ export const login = async (credentials) => {
 
 // Get current user function
 export const getCurrentUser = () => {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    return null;
-  }
   try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return null;
+    }
+
     return jwtDecode(token);
   } catch (error) {
     console.error("Error decoding token:", error);
@@ -120,7 +242,8 @@ export const updateUserProfile = async (userData) => {
       formData.append('File', userData.avatar);
     }
 
-    const response = await fetch(`https://mindmath.azurewebsites.net/api/users/${userId}`, {
+    // 1. Update profile
+    const response = await fetch(`${API_TOKEN_URL}/users/${userId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -128,57 +251,25 @@ export const updateUserProfile = async (userData) => {
       body: formData
     });
 
-    // Get the response text first
-    const responseText = await response.text();
-
     if (!response.ok) {
-      throw new Error(`Failed to update profile: ${responseText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to update profile: ${errorText}`);
     }
 
-    let updatedData;
-    try {
-      // Try to parse the response text as JSON if it's not empty
-      updatedData = responseText ? JSON.parse(responseText) : {};
-    } catch (parseError) {
-      console.warn("Response is not valid JSON:", responseText);
-      // If parsing fails, create a default response object
-      updatedData = {
-        message: "Profile updated successfully",
-        // If you have the avatar URL in the decoded token or response headers
-        avatarUrl: response.headers.get('X-Avatar-Url') || decodedToken.avatarUrl
-      };
-    }
-
-    // Get updated user data after successful update
-    const newUserResponse = await fetch(`https://mindmath.azurewebsites.net/api/users/${userId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    if (newUserResponse.ok) {
-      const newUserData = await newUserResponse.json();
-      // Update localStorage with new user data if needed
-      if (newUserData.accessToken) {
-        localStorage.setItem("token", newUserData.accessToken);
-      }
-      // Merge the new user data with our update response
-      updatedData = {
-        ...updatedData,
-        ...newUserData,
-        avatarUrl: newUserData.avatarUrl || newUserData.AvatarUrl
-      };
-    }
-
-    return updatedData;
+    // 2. Get updated user info
+    const updatedUserData = await getCurrentUserInfo();
+    return {
+      success: true,
+      ...updatedUserData
+    };
   } catch (error) {
     console.error("Error in updateUserProfile:", error);
     throw error;
   }
 };
 
-
 // Logout function
 export const logout = () => {
   localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
 };
