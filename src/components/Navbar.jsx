@@ -187,10 +187,10 @@ const Navbar = () => {
             <div className="pt-4 pb-3 border-t border-gray-200">
               <div className="flex items-center px-4">
                 <div className="flex-shrink-0">
-                  {user.avatar ? (
+                  {user.Avatar ? (
                     <img
                       className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
-                      src={avatarUrl || user.avatar}
+                      src={avatarUrl || user.Avatar}
                       alt={user.name}
                     />
                   ) : (
