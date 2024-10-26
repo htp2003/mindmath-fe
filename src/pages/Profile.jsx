@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getCurrentUser, updateUserProfile, changePassword } from "../services/authServices";
+import { getCurrentUser, updateUserProfile, changePassword, getCurrentUserInfo } from "../services/authServices";
 import { jwtDecode } from "jwt-decode";
 
 const Profile = () => {
@@ -25,18 +25,18 @@ const Profile = () => {
   useEffect(() => {
     fetchUserData();
   }, []);
-
   const fetchUserData = async () => {
     try {
       setLoading(true);
-      const userData = getCurrentUser();
-      if (userData) {
-        setFullname(userData.Fullname || "");
-        setEmail(userData.Email || "");
-        setPhoneNumber(userData.PhoneNumber || "");
+      // Thử lấy thông tin user mới nhất từ API
+      const updatedUserData = await getCurrentUserInfo();
 
-        // Use the correct Avatar field from token
-        const avatarUrl = userData.Avatar;
+      if (updatedUserData) {
+        setFullname(updatedUserData.fullname || "");
+        setEmail(updatedUserData.email || "");
+        setPhoneNumber(updatedUserData.phoneNumber || "");
+
+        const avatarUrl = updatedUserData.avatar || updatedUserData.Avatar;
         if (avatarUrl && avatarUrl.includes('mindmath.blob.core.windows.net')) {
           setCurrentAvatarUrl(avatarUrl);
           setAvatarPreview(avatarUrl);
@@ -44,7 +44,23 @@ const Profile = () => {
           setAvatarPreview("https://via.placeholder.com/150");
         }
       } else {
-        setError("No user data found");
+        // Fallback to token data if API call fails
+        const userData = getCurrentUser();
+        if (userData) {
+          setFullname(userData.Fullname || "");
+          setEmail(userData.Email || "");
+          setPhoneNumber(userData.PhoneNumber || "");
+
+          const avatarUrl = userData.Avatar;
+          if (avatarUrl && avatarUrl.includes('mindmath.blob.core.windows.net')) {
+            setCurrentAvatarUrl(avatarUrl);
+            setAvatarPreview(avatarUrl);
+          } else {
+            setAvatarPreview("https://via.placeholder.com/150");
+          }
+        } else {
+          setError("No user data found");
+        }
       }
     } catch (err) {
       console.error("Error fetching user data:", err);
@@ -53,7 +69,6 @@ const Profile = () => {
       setLoading(false);
     }
   };
-
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -90,32 +105,28 @@ const Profile = () => {
 
       const result = await updateUserProfile(userData);
 
-      // Check for the new avatar URL in the response using the correct field name
-      const newAvatarUrl = result.Avatar || result.avatar;
+      if (result.success) {
+        // Update các trường từ response API
+        setFullname(result.fullname || "");
+        setEmail(result.email || "");
+        setPhoneNumber(result.phoneNumber || "");
 
-      if (newAvatarUrl && newAvatarUrl.includes('mindmath.blob.core.windows.net')) {
-        setCurrentAvatarUrl(newAvatarUrl);
-        setAvatarPreview(newAvatarUrl);
+        // Update avatar
+        const newAvatarUrl = result.avatar || result.Avatar;
+        if (newAvatarUrl && newAvatarUrl.includes('mindmath.blob.core.windows.net')) {
+          setCurrentAvatarUrl(newAvatarUrl);
+          setAvatarPreview(newAvatarUrl);
 
-        // Update the token to include the new avatar URL
-        const token = localStorage.getItem("token");
-        if (token) {
-          try {
-            const decodedToken = jwtDecode(token);
-            const updatedToken = {
-              ...decodedToken,
-              Avatar: newAvatarUrl // Use the correct field name
-            };
-            // You might want to update your auth context or state management here
-          } catch (err) {
-            console.error("Error updating token:", err);
-          }
+          // Dispatch custom event để thông báo avatar đã thay đổi
+          const avatarUpdateEvent = new CustomEvent('avatarUpdate', {
+            detail: { avatarUrl: newAvatarUrl }
+          });
+          window.dispatchEvent(avatarUpdateEvent);
         }
-      }
 
-      alert("Profile updated successfully!");
-      setAvatar(null); // Clear the file input state
-      await fetchUserData(); // Refresh user data
+        alert("Profile updated successfully!");
+        setAvatar(null); // Clear file input
+      }
     } catch (err) {
       console.error("Error updating profile:", err);
       setError("Failed to update profile: " + (err.message || "Unknown error"));
@@ -123,8 +134,6 @@ const Profile = () => {
       setSubmitLoading(false);
     }
   };
-
-
   useEffect(() => {
     if (newPassword || confirmPassword) {
       validatePasswords(newPassword, confirmPassword);

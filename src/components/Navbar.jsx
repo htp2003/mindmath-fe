@@ -3,8 +3,10 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../services/authServices";
 import { Home, Wallet, User, LogOut, Video, Search, BookOpen, Menu, Bell } from "lucide-react";
 
+
 const Navbar = () => {
   const [user, setUser] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,7 +33,20 @@ const Navbar = () => {
     if (token) {
       const decodedToken = decodeToken(token);
       setUser(decodedToken);
+      setAvatarUrl(decodedToken.Avatar);
     }
+
+    // Thêm event listener cho sự kiện cập nhật avatar
+    const handleAvatarUpdate = (event) => {
+      setAvatarUrl(event.detail.avatarUrl);
+    };
+
+    window.addEventListener('avatarUpdate', handleAvatarUpdate);
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('avatarUpdate', handleAvatarUpdate);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -103,7 +118,7 @@ const Navbar = () => {
                       {user.Avatar ? (
                         <img
                           className="h-8 w-8 rounded-full object-cover border-2 border-gray-200"
-                          src={user.Avatar}
+                          src={avatarUrl || user.Avatar}
                           alt={user.name}
                         />
                       ) : (
@@ -175,7 +190,7 @@ const Navbar = () => {
                   {user.avatar ? (
                     <img
                       className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
-                      src={user.avatar}
+                      src={avatarUrl || user.avatar}
                       alt={user.name}
                     />
                   ) : (
