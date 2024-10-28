@@ -17,7 +17,7 @@ import ProtectedRoute from "./components/ProtectRoute/ProtectedRoute";
 import AuthRoute from "./components/AuthRoute/AuthRoute"; // Import AuthRoute
 import { Toaster } from "react-hot-toast";
 import CreateVideo from "./pages/CreateVideo/CreateVideo";
-
+import Videos from "./pages/Videos";
 
 function App() {
   return (
@@ -29,6 +29,7 @@ function App() {
           <Route path="user-dashboard" element={<UserDashboard />} />
           <Route path="profile" element={<Profile />} />
           <Route path="create" element={<CreateVideo />} />
+          <Route path="videos" element={<Videos />} />
         </Route>
 
         {/* Layout cho Admin, bảo vệ bằng ProtectedRoute */}

@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { storage } from "../firebase"; // Import firebase storage
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getCurrentUser, updateUserProfile } from "../services/authServices";
+import { getCurrentUser, updateUserProfile, changePassword, getCurrentUserInfo } from "../services/authServices";
+import { jwtDecode } from "jwt-decode";
 
 const Profile = () => {
   const [avatar, setAvatar] = useState(null);
-  const [avatarURL, setAvatarURL] = useState("https://via.placeholder.com/150");
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState(null);
   const [fullname, setFullname] = useState("");
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [showResetPassword, setShowResetPassword] = useState(false);
@@ -15,90 +14,194 @@ const Profile = () => {
   const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordValidation, setPasswordValidation] = useState({
+    match: true,
+    message: ""
+  });
 
   useEffect(() => {
     fetchUserData();
   }, []);
-
-  const fetchUserData = () => {
+  const fetchUserData = async () => {
     try {
       setLoading(true);
-      const userData = getCurrentUser();
-      console.log("Fetched user data:", userData);
-      if (userData) {
-        setFullname(userData.Fullname || userData.fullname || "");
-        setUsername(userData.UserName || userData.userName || "");
-        setEmail(userData.Email || userData.email || "");
-        setPhoneNumber(userData.PhoneNumber || userData.phoneNumber || "");
+      // Thử lấy thông tin user mới nhất từ API
+      const updatedUserData = await getCurrentUserInfo();
+
+      if (updatedUserData) {
+        setFullname(updatedUserData.fullname || "");
+        setEmail(updatedUserData.email || "");
+        setPhoneNumber(updatedUserData.phoneNumber || "");
+
+        const avatarUrl = updatedUserData.avatar || updatedUserData.Avatar;
+        if (avatarUrl && avatarUrl.includes('mindmath.blob.core.windows.net')) {
+          setCurrentAvatarUrl(avatarUrl);
+          setAvatarPreview(avatarUrl);
+        } else {
+          setAvatarPreview("https://via.placeholder.com/150");
+        }
       } else {
-        setError("No user data found");
+        // Fallback to token data if API call fails
+        const userData = getCurrentUser();
+        if (userData) {
+          setFullname(userData.Fullname || "");
+          setEmail(userData.Email || "");
+          setPhoneNumber(userData.PhoneNumber || "");
+
+          const avatarUrl = userData.Avatar;
+          if (avatarUrl && avatarUrl.includes('mindmath.blob.core.windows.net')) {
+            setCurrentAvatarUrl(avatarUrl);
+            setAvatarPreview(avatarUrl);
+          } else {
+            setAvatarPreview("https://via.placeholder.com/150");
+          }
+        } else {
+          setError("No user data found");
+        }
       }
-      setLoading(false);
     } catch (err) {
       console.error("Error fetching user data:", err);
       setError("Failed to fetch user data: " + err.message);
+    } finally {
       setLoading(false);
     }
   };
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    setAvatar(file);
-  };
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size should be less than 5MB');
+        e.target.value = '';
+        return;
+      }
 
-  const handleUpload = () => {
-    if (avatar) {
-      const avatarRef = ref(storage, `avatars/${avatar.name}`);
-      uploadBytes(avatarRef, avatar)
-        .then((snapshot) => {
-          getDownloadURL(snapshot.ref).then((url) => {
-            setAvatarURL(url);
-            alert("Avatar uploaded successfully!");
-            setAvatar(null);
-          });
-        })
-        .catch((error) => {
-          console.error("Error uploading avatar: ", error);
-        });
+      if (!file.type.startsWith('image/')) {
+        alert('Only image files are allowed');
+        e.target.value = '';
+        return;
+      }
+
+      setAvatar(file);
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarPreview(previewUrl);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitLoading(true);
+    setError(null);
+
     try {
-      console.log("Submitting user data:", {
+      const userData = {
         fullname,
         email,
         phoneNumber,
-      });
-      const result = await updateUserProfile({
-        fullname,
-        email,
-        phoneNumber,
-      });
-      console.log("Update result:", result);
-      alert(result.message || "Profile updated successfully!");
-      // Optionally refresh user data after update
-      fetchUserData();
+        avatar
+      };
+
+      const result = await updateUserProfile(userData);
+
+      if (result.success) {
+        // Update các trường từ response API
+        setFullname(result.fullname || "");
+        setEmail(result.email || "");
+        setPhoneNumber(result.phoneNumber || "");
+
+        // Update avatar
+        const newAvatarUrl = result.avatar || result.Avatar;
+        if (newAvatarUrl && newAvatarUrl.includes('mindmath.blob.core.windows.net')) {
+          setCurrentAvatarUrl(newAvatarUrl);
+          setAvatarPreview(newAvatarUrl);
+
+          // Dispatch custom event để thông báo avatar đã thay đổi
+          const avatarUpdateEvent = new CustomEvent('avatarUpdate', {
+            detail: { avatarUrl: newAvatarUrl }
+          });
+          window.dispatchEvent(avatarUpdateEvent);
+        }
+
+        alert("Profile updated successfully!");
+        setAvatar(null); // Clear file input
+      }
     } catch (err) {
       console.error("Error updating profile:", err);
-      setError("Failed to update profile: " + err.message);
+      setError("Failed to update profile: " + (err.message || "Unknown error"));
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (newPassword || confirmPassword) {
+      validatePasswords(newPassword, confirmPassword);
+    }
+  }, [newPassword, confirmPassword]);
+
+  const validatePasswords = (newPass, confirmPass) => {
+    // Trim the passwords to remove any whitespace
+    const trimmedNew = (newPass || "").trim();
+    const trimmedConfirm = (confirmPass || "").trim();
+
+    if (!trimmedNew || !trimmedConfirm) {
+      return true; // Don't show error if fields are empty
+    }
+
+    if (trimmedNew !== trimmedConfirm) {
+      setPasswordValidation({
+        match: false,
+        message: "New passwords do not match"
+      });
+      return false;
+    }
+
+    if (trimmedNew.length < 6) {
+      setPasswordValidation({
+        match: false,
+        message: "Password must be at least 6 characters long"
+      });
+      return false;
+    }
+
+    setPasswordValidation({
+      match: true,
+      message: ""
+    });
+    return true;
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+
+    // Clear previous errors
+    setPasswordError("");
+
+    // Final validation before submission
+    if (!validatePasswords(newPassword, confirmPassword)) {
+      return;
+    }
+
+    try {
+      const result = await changePassword(oldPassword, newPassword);
+      alert(result.message || "Password changed successfully!");
+
+      // Reset form and close modal
+      setShowResetPassword(false);
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordValidation({ match: true, message: "" });
+    } catch (err) {
+      setPasswordError(err.message || "Failed to change password");
     }
   };
 
-  const handleResetPassword = (e) => {
-    e.preventDefault();
-    // Handle password reset logic (you might want to create a separate API endpoint for this)
-    console.log({
-      oldPassword,
-      newPassword,
-    });
-    setShowResetPassword(false);
-    setOldPassword("");
-    setNewPassword("");
-  };
+
 
   if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
+  if (error) return <div className="alert alert-error">{error}</div>;
 
   return (
     <div className="container mx-auto p-4">
@@ -120,7 +223,6 @@ const Profile = () => {
                     required
                   />
                 </div>
-
 
                 <div className="form-control mt-4">
                   <label className="label">
@@ -149,8 +251,12 @@ const Profile = () => {
                 </div>
 
                 <div className="form-control mt-6">
-                  <button type="submit" className="btn btn-neutral">
-                    Save Profile
+                  <button
+                    type="submit"
+                    className={`btn btn-neutral ${submitLoading ? 'loading' : ''}`}
+                    disabled={submitLoading}
+                  >
+                    {submitLoading ? 'Saving...' : 'Save Profile'}
                   </button>
                 </div>
               </form>
@@ -166,11 +272,30 @@ const Profile = () => {
             </div>
 
             <div className="flex flex-col items-center">
-              <img
-                src={avatarURL}
-                alt="Avatar"
-                className="rounded-full w-32 h-32 mb-4"
-              />
+              <div className="relative w-32 h-32 mb-4">
+                <img
+                  src={avatarPreview || "https://via.placeholder.com/150"}
+                  alt="Avatar"
+                  className="rounded-full w-full h-full object-cover"
+                />
+                {(avatar || currentAvatarUrl) && (
+                  <button
+                    onClick={() => {
+                      if (avatar) {
+                        setAvatar(null);
+                        URL.revokeObjectURL(avatarPreview);
+                        setAvatarPreview(currentAvatarUrl || "https://via.placeholder.com/150");
+                      } else {
+                        setCurrentAvatarUrl(null);
+                        setAvatarPreview("https://via.placeholder.com/150");
+                      }
+                    }}
+                    className="absolute -top-2 -right-2 btn btn-circle btn-xs btn-error"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
               <div className="form-control w-full">
                 <label className="label">
                   <span className="label-text">Upload Avatar</span>
@@ -181,13 +306,9 @@ const Profile = () => {
                   onChange={handleFileChange}
                   className="file-input file-input-bordered w-full"
                 />
-                <button
-                  type="button"
-                  onClick={handleUpload}
-                  className="btn btn-neutral mt-2"
-                >
-                  Upload
-                </button>
+                <label className="label">
+                  <span className="label-text-alt">Max file size: 5MB</span>
+                </label>
               </div>
             </div>
           </div>
@@ -198,6 +319,19 @@ const Profile = () => {
         <div className="modal modal-open">
           <div className="modal-box">
             <h3 className="font-bold text-lg">Reset Password</h3>
+
+            {passwordError && (
+              <div className="alert alert-error mt-2">
+                <span>{passwordError}</span>
+              </div>
+            )}
+
+            {!passwordValidation.match && passwordValidation.message && (
+              <div className="alert alert-warning mt-2">
+                <span>{passwordValidation.message}</span>
+              </div>
+            )}
+
             <form onSubmit={handleResetPassword}>
               <div className="form-control">
                 <label className="label">
@@ -206,11 +340,12 @@ const Profile = () => {
                 <input
                   type="password"
                   value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
+                  onChange={(e) => setOldPassword(e.target.value.trim())}
                   className="input input-bordered"
                   required
                 />
               </div>
+
               <div className="form-control mt-4">
                 <label className="label">
                   <span className="label-text">New Password</span>
@@ -221,16 +356,54 @@ const Profile = () => {
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="input input-bordered"
                   required
+                  minLength={6}
+                />
+                <label className="label">
+                  <span className="label-text-alt text-gray-500">
+                    Minimum 6 characters
+                  </span>
+                </label>
+              </div>
+
+              <div className="form-control mt-4">
+                <label className="label">
+                  <span className="label-text">Confirm New Password</span>
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`input input-bordered ${confirmPassword && !passwordValidation.match ? 'input-error' : ''
+                    }`}
+                  required
+                  minLength={6}
                 />
               </div>
+
               <div className="modal-action">
-                <button type="submit" className="btn btn-neutral">
-                  Reset Password
+                <button
+                  type="submit"
+                  className="btn btn-neutral"
+                  disabled={
+                    !oldPassword ||
+                    !newPassword ||
+                    !confirmPassword ||
+                    !passwordValidation.match
+                  }
+                >
+                  Change Password
                 </button>
                 <button
                   type="button"
                   className="btn"
-                  onClick={() => setShowResetPassword(false)}
+                  onClick={() => {
+                    setShowResetPassword(false);
+                    setPasswordError("");
+                    setOldPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                    setPasswordValidation({ match: true, message: "" });
+                  }}
                 >
                   Cancel
                 </button>
