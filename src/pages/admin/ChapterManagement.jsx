@@ -4,7 +4,7 @@ import {
   addChapter,
   getChaptersBySubjectId,
   updateChapter,
-  deactivateChapter,
+  toggleChapterStatus,
 } from "../../services/chapterService";
 import { Button, Modal, Input, Select, Table, message } from "antd";
 
@@ -18,7 +18,7 @@ const ChapterManagement = () => {
   });
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedChapter, setSelectedChapter] = useState(null); // For editing
+  const [selectedChapter, setSelectedChapter] = useState(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
 
   // Fetch subjects from the API
@@ -31,7 +31,6 @@ const ChapterManagement = () => {
         message.error("Failed to fetch subjects.");
       }
     };
-
     fetchSubjects();
   }, []);
 
@@ -47,10 +46,10 @@ const ChapterManagement = () => {
         }
       }
     };
-
     fetchChapters();
   }, [selectedSubjectId]);
 
+  // Add a new chapter
   const handleAddChapter = async () => {
     if (
       newChapter.name.trim() !== "" &&
@@ -63,7 +62,6 @@ const ChapterManagement = () => {
         setNewChapter({ name: "", description: "", subjectId: null });
         setIsModalVisible(false);
 
-        // Fetch updated chapters
         const updatedChapters = await getChaptersBySubjectId(
           newChapter.subjectId
         );
@@ -76,6 +74,7 @@ const ChapterManagement = () => {
     }
   };
 
+  // Edit an existing chapter
   const handleEditChapter = async () => {
     if (
       selectedChapter.name.trim() !== "" &&
@@ -87,32 +86,42 @@ const ChapterManagement = () => {
           selectedChapter.id,
           selectedChapter
         );
-        setChapters(
-          chapters.map((chapter) =>
-            chapter.id === selectedChapter.id ? selectedChapter : chapter
-          )
-        );
+
         message.success("Chapter updated successfully!");
+
+        const updatedChapters = await getChaptersBySubjectId(selectedSubjectId);
+        setChapters(updatedChapters);
+
         setSelectedChapter(null);
         setIsModalVisible(false);
       } catch (error) {
-        message.error("Failed to update chapter.");
+        message.error(error.message || "Failed to update chapter.");
       }
     } else {
       message.warning("Please fill in all fields.");
     }
   };
 
-  const handleDeactivateChapter = async (chapterId) => {
-    try {
-      await deactivateChapter(selectedSubjectId, chapterId);
-      setChapters(chapters.filter((chapter) => chapter.id !== chapterId));
-      message.success("Chapter deactivated successfully!");
-    } catch (error) {
-      message.error("Failed to deactivate chapter.");
-    }
-  };
+  // Toggle chapter status
+ const handleToggleChapterStatus = async (chapter) => {
+   try {
+     await toggleChapterStatus(selectedSubjectId, chapter.id);
 
+     const updatedChapters = await getChaptersBySubjectId(selectedSubjectId);
+     setChapters(updatedChapters);
+
+     message.success(
+       chapter.active
+         ? "Chapter blocked successfully!"
+         : "Chapter reactivated successfully!"
+     );
+   } catch (error) {
+     message.error("Failed to update chapter status.");
+   }
+ };
+
+
+  // Open the modal for editing
   const openEditModal = (chapter) => {
     setSelectedChapter(chapter);
     setIsEditMode(true);
@@ -142,7 +151,13 @@ const ChapterManagement = () => {
         onClick={() => {
           setIsEditMode(false);
           setIsModalVisible(true);
+          setNewChapter({
+            name: "",
+            description: "",
+            subjectId: selectedSubjectId,
+          });
         }}
+        disabled={!selectedSubjectId}
       >
         Add Chapter
       </Button>
@@ -196,13 +211,14 @@ const ChapterManagement = () => {
               <Button type="link" onClick={() => openEditModal(chapter)}>
                 Edit
               </Button>
-              <Button
-                type="link"
-                danger
-                onClick={() => handleDeactivateChapter(chapter.id)}
+              <button
+                className={`${
+                  chapter.active ? "text-green-500" : "text-red-500"
+                }`}
+                onClick={() => handleToggleChapterStatus(chapter)}
               >
-                {chapter.active ? "Deactivate" : "Deactivated"}
-              </Button>
+                {chapter.active ? "Active" : "Blocked"}
+              </button>
             </>
           )}
         />

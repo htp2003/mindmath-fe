@@ -12,17 +12,17 @@ const SubjectManagement = () => {
   const [newSubject, setNewSubject] = useState({ name: "", description: "" });
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState(null); // To hold the subject being edited
+  const [selectedSubject, setSelectedSubject] = useState(null);
 
   // Fetch subjects from the API
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const data = await getSubjects(); // Fetch subjects using the service
+        const data = await getSubjects();
         setSubjects(data);
       } catch (error) {
         console.error("Error fetching subjects:", error);
-        message.error("Failed to fetch subjects."); // Show error message
+        message.error("Failed to fetch subjects.");
       }
     };
 
@@ -32,17 +32,17 @@ const SubjectManagement = () => {
   const handleAddSubject = async () => {
     if (newSubject.name.trim() !== "" && newSubject.description.trim() !== "") {
       try {
-        const addedSubject = await addSubject(newSubject); // Add the subject
-        setSubjects([...subjects, addedSubject]); // Update UI
-        setNewSubject({ name: "", description: "" }); // Clear input fields
-        setIsModalVisible(false); // Close modal
-        message.success("Subject added successfully!"); // Show success message
+        const addedSubject = await addSubject(newSubject);
+        setSubjects([...subjects, addedSubject]);
+        setNewSubject({ name: "", description: "" });
+        setIsModalVisible(false);
+        message.success("Subject added successfully!");
       } catch (error) {
         console.error("Error adding subject:", error);
-        message.error("Failed to add subject."); // Show error message
+        message.error("Failed to add subject.");
       }
     } else {
-      message.warning("Please fill in all fields."); // Warning for empty fields
+      message.warning("Please fill in all fields.");
     }
   };
 
@@ -52,47 +52,45 @@ const SubjectManagement = () => {
       selectedSubject.description.trim() !== ""
     ) {
       try {
-        await updateSubject(selectedSubject.id, selectedSubject); // Update the subject
+        await updateSubject(selectedSubject.id, selectedSubject);
         setSubjects(
           subjects.map((subject) =>
             subject.id === selectedSubject.id ? selectedSubject : subject
           )
-        ); // Update UI
-        setSelectedSubject(null); // Clear selected subject
-        setIsModalVisible(false); // Close modal
-        message.success("Subject updated successfully!"); // Show success message
+        );
+        setSelectedSubject(null);
+        setIsModalVisible(false);
+        message.success("Subject updated successfully!");
       } catch (error) {
         console.error("Error updating subject:", error);
-        message.error("Failed to update subject."); // Show error message
+        message.error("Failed to update subject.");
       }
     } else {
-      message.warning("Please fill in all fields."); // Warning for empty fields
+      message.warning("Please fill in all fields.");
     }
   };
 
-  const handleToggleSubjectStatus = async (subjectId, currentActiveStatus) => {
+  const handleToggleSubjectStatus = async (subjectId) => {
     try {
-      await toggleSubjectStatus(subjectId, currentActiveStatus); // Call API to toggle the active status
+      await toggleSubjectStatus(subjectId); // Call API to block the subject
       setSubjects(
         subjects.map((subject) =>
           subject.id === subjectId
-            ? { ...subject, active: !subject.active } // Toggle active status in UI
+            ? { ...subject, active: false } // Set active to false in UI
             : subject
         )
       );
-      message.success(
-        `Subject ${currentActiveStatus ? "blocked" : "activated"} successfully!`
-      );
+      message.success("Subject blocked successfully!");
     } catch (error) {
-      console.error("Error toggling subject status:", error);
-      message.error("Failed to update subject status."); // Show error message
+      console.error("Error blocking subject:", error);
+      message.error("Failed to block subject.");
     }
   };
 
   const openEditModal = (subject) => {
-    setSelectedSubject(subject); // Set the subject to be edited
-    setIsEditMode(true); // Set to edit mode
-    setIsModalVisible(true); // Open modal
+    setSelectedSubject(subject);
+    setIsEditMode(true);
+    setIsModalVisible(true);
   };
 
   return (
@@ -156,15 +154,15 @@ const SubjectManagement = () => {
               <Button type="link" onClick={() => openEditModal(subject)}>
                 Edit
               </Button>
-              <Button
-                type="link"
-                danger={subject.active}
-                onClick={() =>
-                  handleToggleSubjectStatus(subject.id, subject.active)
-                }
+              <button
+                className={`${
+                  subject.active ? "text-green-500" : "text-red-500"
+                }`}
+                onClick={() => handleToggleSubjectStatus(subject.id)} // Call toggle function
               >
-                {subject.active ? "Block" : "Blocked"}
-              </Button>
+                {subject.active ? "Active" : "Blocked"}{" "}
+                {/* Change button text */}
+              </button>
             </span>
           )}
         />
