@@ -1,56 +1,61 @@
 import React, { useEffect, useState } from "react";
-import { getChaptersBySubjectId } from "../../services/chapterService"; // Assuming this service exists
-import { getSubjects } from "../../services/subjectService"; // Assuming this service exists
-import { getTopicsByChapterId} from "../../services/topicService"; // Assuming these services exist
+import { getChaptersBySubjectId } from "../../services/chapterService";
+import { getSubjects } from "../../services/subjectService";
+import { getTopicsByChapterId } from "../../services/topicService";
 import {
   getProblemTypesByTopicId,
   addProblemType,
-} from "../../services/problemTypeService"; // Assuming you create these services
+  updateProblemType,
+  toggleProblemTypeStatus,
+} from "../../services/problemTypeService";
 import { Button, Modal, Input, Select, Table, message } from "antd";
 
 const ProblemTypeManagement = () => {
-  const [subjects, setSubjects] = useState([]); // For subject selection
-  const [chapters, setChapters] = useState([]); // For chapter selection
-  const [topics, setTopics] = useState([]); // For topic selection
-  const [problemTypes, setProblemTypes] = useState([]); // For displaying problem types
-  const [newProblemType, setNewProblemType] = useState({
-    name: "",
-    description: "",
-    topicId: null,
-  });
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [chapters, setChapters] = useState([]);
+  const [topics, setTopics] = useState([]);
+  const [problemTypes, setProblemTypes] = useState([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
   const [selectedChapterId, setSelectedChapterId] = useState(null);
   const [selectedTopicId, setSelectedTopicId] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editingProblemType, setEditingProblemType] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    numberOfInputs: 0,
+  });
 
   // Fetch subjects from the API
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const data = await getSubjects(); // Fetch subjects
+        const data = await getSubjects();
         setSubjects(data);
       } catch (error) {
         console.error("Error fetching subjects:", error);
+        message.error("Failed to fetch subjects");
       }
     };
-
     fetchSubjects();
   }, []);
 
-  // Fetch chapters from the API when the selected subject changes
+  // Fetch chapters when the selected subject changes
   useEffect(() => {
     const fetchChapters = async () => {
-      try {
-        const data = await getChaptersBySubjectId(selectedSubjectId); // Fetch chapters for the selected subject
-        setChapters(data);
-      } catch (error) {
-        console.error("Error fetching chapters:", error);
+      if (selectedSubjectId) {
+        try {
+          const data = await getChaptersBySubjectId(selectedSubjectId);
+          setChapters(data);
+        } catch (error) {
+          console.error("Error fetching chapters:", error);
+          message.error("Failed to fetch chapters");
+        }
+      } else {
+        setChapters([]);
       }
     };
-
-    if (selectedSubjectId) {
-      fetchChapters();
-    }
+    fetchChapters();
   }, [selectedSubjectId]);
 
   // Fetch topics when the selected chapter changes
@@ -58,16 +63,16 @@ const ProblemTypeManagement = () => {
     const fetchTopics = async () => {
       if (selectedChapterId) {
         try {
-          const data = await getTopicsByChapterId(selectedChapterId); // Fetch topics for the selected chapter
+          const data = await getTopicsByChapterId(selectedChapterId);
           setTopics(data);
         } catch (error) {
           console.error("Error fetching topics:", error);
+          message.error("Failed to fetch topics");
         }
       } else {
-        setTopics([]); // Reset topics if no chapter is selected
+        setTopics([]);
       }
     };
-
     fetchTopics();
   }, [selectedChapterId]);
 
@@ -76,42 +81,102 @@ const ProblemTypeManagement = () => {
     const fetchProblemTypes = async () => {
       if (selectedTopicId) {
         try {
-          const data = await getProblemTypesByTopicId(selectedTopicId); // Fetch problem types for the selected topic
+          const data = await getProblemTypesByTopicId(selectedTopicId);
           setProblemTypes(data);
         } catch (error) {
           console.error("Error fetching problem types:", error);
+          message.error("Failed to fetch problem types");
         }
       } else {
-        setProblemTypes([]); // Reset problem types if no topic is selected
+        setProblemTypes([]);
       }
     };
-
     fetchProblemTypes();
   }, [selectedTopicId]);
 
-  const handleAddProblemType = async () => {
-    if (
-      newProblemType.name.trim() !== "" &&
-      newProblemType.description.trim() !== "" &&
-      newProblemType.topicId
-    ) {
-      try {
-        await addProblemType(newProblemType.topicId, newProblemType); // Call addProblemType service
-        setNewProblemType({ name: "", description: "", topicId: null }); // Reset form
-        setIsModalVisible(false); // Close modal
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      description: "",
+      numberOfInputs: 0,
+    });
+    setEditingProblemType(null);
+  };
 
-        // Fetch updated problem types
-        const updatedProblemTypes = await getProblemTypesByTopicId(
-          newProblemType.topicId
+  const handleModalClose = () => {
+    setIsModalVisible(false);
+    resetForm();
+  };
+
+  const openEditModal = (problemType) => {
+    setEditingProblemType(problemType);
+    setFormData({
+      name: problemType.name,
+      description: problemType.description,
+      numberOfInputs: problemType.numberOfInputs,
+    });
+    setIsModalVisible(true);
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: field === "numberOfInputs" ? Number(value) : value,
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.name.trim() || !formData.description.trim()) {
+      message.warning("Please fill all required fields");
+      return;
+    }
+
+    try {
+      if (editingProblemType) {
+        await updateProblemType(
+          selectedTopicId,
+          editingProblemType.id,
+          formData
         );
-        setProblemTypes(updatedProblemTypes); // Update problem types state
-        message.success("Problem Type added successfully!");
-      } catch (error) {
-        console.error("Error adding problem type:", error);
-        message.error("Failed to add problem type");
+        message.success("Problem type updated successfully!");
+      } else {
+        await addProblemType(selectedTopicId, formData);
+        message.success("Problem type added successfully!");
       }
-    } else {
-      message.warning("Please fill all fields");
+
+      // Refresh problem types list
+      const updatedProblemTypes = await getProblemTypesByTopicId(
+        selectedTopicId
+      );
+      setProblemTypes(updatedProblemTypes);
+      handleModalClose();
+    } catch (error) {
+      console.error("Error saving problem type:", error);
+      message.error(
+        editingProblemType
+          ? "Failed to update problem type"
+          : "Failed to add problem type"
+      );
+    }
+  };
+
+  const handleToggleProblemTypeStatus = async (problemType) => {
+    try {
+      await toggleProblemTypeStatus(selectedTopicId, problemType.id);
+      message.success(
+        `Problem type ${
+          problemType.active ? "blocked" : "reactivated"
+        } successfully!`
+      );
+
+      // Refresh problem types after status toggle
+      const updatedProblemTypes = await getProblemTypesByTopicId(
+        selectedTopicId
+      );
+      setProblemTypes(updatedProblemTypes);
+    } catch (error) {
+      console.error("Error toggling problem type status:", error);
+      message.error("Failed to update problem type status");
     }
   };
 
@@ -119,19 +184,15 @@ const ProblemTypeManagement = () => {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Problem Type Management</h1>
 
-      {/* Subject selection */}
       <Select
         placeholder="Select Subject"
         style={{ width: "100%", marginBottom: 16 }}
         onChange={(value) => {
           setSelectedSubjectId(value);
-          setChapters([]); // Reset chapters when subject changes
-          setTopics([]); // Reset topics when subject changes
-          setProblemTypes([]); // Reset problem types when subject changes
-          setSelectedChapterId(null); // Reset selected chapter when subject changes
-          setSelectedTopicId(null); // Reset selected topic when subject changes
+          setSelectedChapterId(null);
+          setSelectedTopicId(null);
         }}
-        value={selectedSubjectId} // Bind selected subject ID
+        value={selectedSubjectId}
       >
         {subjects.map((subject) => (
           <Select.Option key={subject.id} value={subject.id}>
@@ -140,18 +201,15 @@ const ProblemTypeManagement = () => {
         ))}
       </Select>
 
-      {/* Chapter selection */}
       <Select
         placeholder="Select Chapter"
         style={{ width: "100%", marginBottom: 16 }}
         onChange={(value) => {
           setSelectedChapterId(value);
-          setTopics([]); // Reset topics when chapter changes
-          setProblemTypes([]); // Reset problem types when chapter changes
-          setSelectedTopicId(null); // Reset selected topic when chapter changes
+          setSelectedTopicId(null);
         }}
-        value={selectedChapterId} // Bind selected chapter ID
-        disabled={!selectedSubjectId} // Disable if no subject is selected
+        value={selectedChapterId}
+        disabled={!selectedSubjectId}
       >
         {chapters.map((chapter) => (
           <Select.Option key={chapter.id} value={chapter.id}>
@@ -160,16 +218,12 @@ const ProblemTypeManagement = () => {
         ))}
       </Select>
 
-      {/* Topic selection */}
       <Select
         placeholder="Select Topic"
         style={{ width: "100%", marginBottom: 16 }}
-        onChange={(value) => {
-          setSelectedTopicId(value);
-          setNewProblemType({ ...newProblemType, topicId: value }); // Set topicId for the new problem type
-        }}
-        value={selectedTopicId} // Bind selected topic ID
-        disabled={!selectedChapterId} // Disable if no chapter is selected
+        onChange={setSelectedTopicId}
+        value={selectedTopicId}
+        disabled={!selectedChapterId}
       >
         {topics.map((topic) => (
           <Select.Option key={topic.id} value={topic.id}>
@@ -178,51 +232,78 @@ const ProblemTypeManagement = () => {
         ))}
       </Select>
 
-      {/* Add Problem Type Button */}
       <Button
         type="primary"
-        onClick={() => setIsModalVisible(true)}
-        disabled={!selectedTopicId} // Disable if no topic is selected
+        onClick={() => {
+          resetForm();
+          setIsModalVisible(true);
+        }}
+        disabled={!selectedTopicId}
       >
         Add Problem Type
       </Button>
 
-      {/* Modal for adding a new problem type */}
       <Modal
-        title="Add New Problem Type"
-        visible={isModalVisible}
-        onOk={handleAddProblemType}
-        onCancel={() => setIsModalVisible(false)}
+        title={
+          editingProblemType ? "Edit Problem Type" : "Add New Problem Type"
+        }
+        open={isModalVisible}
+        onOk={handleSubmit}
+        onCancel={handleModalClose}
       >
         <Input
           placeholder="Problem Type Name"
-          value={newProblemType.name}
-          onChange={(e) =>
-            setNewProblemType({ ...newProblemType, name: e.target.value })
-          }
+          value={formData.name}
+          onChange={(e) => handleInputChange("name", e.target.value)}
           className="mb-4"
         />
         <Input
           placeholder="Description"
-          value={newProblemType.description}
-          onChange={(e) =>
-            setNewProblemType({
-              ...newProblemType,
-              description: e.target.value,
-            })
-          }
+          value={formData.description}
+          onChange={(e) => handleInputChange("description", e.target.value)}
           className="mb-4"
+        />
+        <Input
+          type="number"
+          placeholder="Number of Inputs"
+          value={formData.numberOfInputs}
+          onChange={(e) => handleInputChange("numberOfInputs", e.target.value)}
+          className="mb-4"
+          min={0}
         />
       </Modal>
 
-      {/* Render the problem types table */}
-      <h2 className="text-xl font-semibold mt-4">Problem Types</h2>
-      <Table dataSource={problemTypes} rowKey="id">
+      <Table dataSource={problemTypes} rowKey="id" className="mt-4">
         <Table.Column title="Problem Type Name" dataIndex="name" key="name" />
         <Table.Column
           title="Description"
           dataIndex="description"
           key="description"
+        />
+        <Table.Column
+          title="Number of Inputs"
+          dataIndex="numberOfInputs"
+          key="numberOfInputs"
+        />
+        <Table.Column
+          title="Actions"
+          key="actions"
+          render={(_, problemType) => (
+            <>
+              <Button type="link" onClick={() => openEditModal(problemType)}>
+                Edit
+              </Button>
+              <Button
+                type="link"
+                onClick={() => handleToggleProblemTypeStatus(problemType)}
+                className={
+                  problemType.active ? "text-green-500" : "text-red-500"
+                }
+              >
+                {problemType.active ? "Active" : "Blocked"}
+              </Button>
+            </>
+          )}
         />
       </Table>
     </div>
