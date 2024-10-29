@@ -2,10 +2,9 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 
-// Giả sử bạn có cách để lấy thông tin role của người dùng, ví dụ từ context hoặc localStorage
 const getRole = () => {
   // Lấy role từ localStorage, context hoặc API, ở đây tôi sẽ giả lập là từ localStorage
-  return localStorage.getItem("role"); // "admin" hoặc "user"
+  return localStorage.getItem("role"); // "admin" hoặc "teacher"
 };
 
 const PrivateRoute = ({ children, adminOnly }) => {
