@@ -86,6 +86,44 @@ const createPaymentUrl = (amount, description, ipAddr = '127.0.0.1') => {
 };
 
 // Create transaction
+// export const createTransaction = async (userId, amount, description) => {
+//     try {
+//         const token = localStorage.getItem("token");
+//         if (!token) {
+//             throw new Error("No token found");
+//         }
+
+//         // Get client IP (you might want to implement a proper IP detection)
+//         const ipAddr = await axios.get('https://api.ipify.org?format=json')
+//             .then(response => response.data.ip)
+//             .catch(() => '127.0.0.1');
+
+//         // Create payment URL with client IP
+//         const { url: paymentUrl, orderId } = createPaymentUrl(amount, description, ipAddr);
+
+//         // Create transaction in your system
+//         const response = await axios.post(
+//             `${API_URL}/transactions/create`,
+//             {
+//                 amount: amount,
+//                 description: description,
+//                 orderId: orderId
+//             },
+//             {
+//                 headers: { Authorization: `Bearer ${token}` },
+//                 params: { userId }
+//             }
+//         );
+
+//         return {
+//             transactionId: response.data.id,
+//             paymentUrl: paymentUrl
+//         };
+//     } catch (error) {
+//         console.error("Error creating transaction:", error);
+//         throw error;
+//     }
+// };
 export const createTransaction = async (userId, amount, description) => {
     try {
         const token = localStorage.getItem("token");
@@ -93,31 +131,22 @@ export const createTransaction = async (userId, amount, description) => {
             throw new Error("No token found");
         }
 
-        // Get client IP (you might want to implement a proper IP detection)
-        const ipAddr = await axios.get('https://api.ipify.org?format=json')
-            .then(response => response.data.ip)
-            .catch(() => '127.0.0.1');
-
-        // Create payment URL with client IP
-        const { url: paymentUrl, orderId } = createPaymentUrl(amount, description, ipAddr);
-
-        // Create transaction in your system
+        // API call to create a transaction and get the VNPay URL
         const response = await axios.post(
-            `${API_URL}/transactions/create`,
+            `${API_URL}/transactions/create?userId=${userId}`,
             {
                 amount: amount,
                 description: description,
-                orderId: orderId
             },
             {
                 headers: { Authorization: `Bearer ${token}` },
-                params: { userId }
             }
         );
 
+        // Get payment URL from response
         return {
             transactionId: response.data.id,
-            paymentUrl: paymentUrl
+            paymentUrl: response.data.paymentUrl,
         };
     } catch (error) {
         console.error("Error creating transaction:", error);
