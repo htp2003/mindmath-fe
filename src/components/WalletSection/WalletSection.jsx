@@ -57,7 +57,7 @@ const WalletSection = () => {
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
                 <h2 className="card-title">Wallet Balance</h2>
-                <p className="text-2xl font-bold mb-4">${(balance / 100).toFixed(2)}</p>
+                <p className="text-2xl font-bold mb-4">${balance}</p>
                 <div className="overflow-x-auto">
                     <table className="table w-full">
                         <thead>
@@ -74,7 +74,7 @@ const WalletSection = () => {
                                     <td>{new Date(transaction.date).toLocaleDateString()}</td>
                                     <td>{transaction.description}</td>
                                     <td className={transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}>
-                                        ${(transaction.amount / 100).toFixed(2)}
+                                        ${transaction.amount}
                                     </td>
                                     <td>
                                         <span className={`px-2 py-1 rounded-full text-xs ${transaction.status === 'completed'
