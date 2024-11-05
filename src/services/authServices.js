@@ -164,7 +164,6 @@ export const login = async (credentials) => {
   }
 };
 
-// Get current user function
 export const getCurrentUser = () => {
   try {
     const token = localStorage.getItem("token");
@@ -172,13 +171,21 @@ export const getCurrentUser = () => {
       return null;
     }
 
-    return jwtDecode(token);
+    const decodedToken = jwtDecode(token);
+    const userId = decodedToken.Id || decodedToken.id;
+
+    if (!userId) {
+      return null;
+    }
+
+    return {
+      id: userId
+    };
   } catch (error) {
     console.error("Error decoding token:", error);
     return null;
   }
 };
-
 // Change password function
 export const changePassword = async (oldPassword, newPassword) => {
   const token = localStorage.getItem("token");

@@ -23,6 +23,7 @@ function App() {
   return (
     <Router>
       <Routes>
+
         {/* Layout cho người dùng */}
         <Route path="/" element={<UserLayout />}>
           <Route index element={<Home />} />
