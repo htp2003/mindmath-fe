@@ -4,7 +4,7 @@ const API_URL = "https://mindmath.azurewebsites.net/api";
 export const getSubjects = async () => {
     try {
         const token = localStorage.getItem("token");
-        const response = await axios.get(`${API_URL}/subjects`, {
+        const response = await axios.get(`${API_URL}/subjects/active`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         return response.data;
@@ -17,12 +17,15 @@ export const getSubjects = async () => {
 export const getChapters = async (subjectId) => {
     try {
         const token = localStorage.getItem("token");
-        const response = await axios.get(`${API_URL}/subjects/${subjectId}/chapters`, {
-            headers: { Authorization: `Bearer ${token}` },
-            params: {
-                pageSize: 20  // Thêm tham số pageSize vào đây
+        const response = await axios.get(
+            `${API_URL}/subjects/${subjectId}/chapters/active`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+                params: {
+                    pageSize: 20, // Thêm tham số pageSize vào đây
+                },
             }
-        });
+        );
         return response.data;
     } catch (error) {
         console.error("Error fetching chapters:", error);
@@ -33,9 +36,12 @@ export const getChapters = async (subjectId) => {
 export const getTopics = async (chapterId) => {
     try {
         const token = localStorage.getItem("token");
-        const response = await axios.get(`${API_URL}/chapters/${chapterId}/topics`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await axios.get(
+            `${API_URL}/chapters/${chapterId}/topics/active`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
         return response.data;
     } catch (error) {
         console.error("Error fetching topics:", error);
@@ -46,9 +52,12 @@ export const getTopics = async (chapterId) => {
 export const getProblemTypes = async (topicId) => {
     try {
         const token = localStorage.getItem("token");
-        const response = await axios.get(`${API_URL}/topics/${topicId}/problem-types`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await axios.get(
+            `${API_URL}/topics/${topicId}/problem-types/active`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
         return response.data;
     } catch (error) {
         console.error("Error fetching problem types:", error);
@@ -72,6 +81,22 @@ export const submitInput = async (problemTypeId, userId, inputs) => {
         throw error;
     }
 };
+export const getInputParam = async (problemTypeId, userId) => {
+    try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(
+            `${API_URL}/problem-types/${problemTypeId}/users/${userId}/input-parameters`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching input parameters:", error);
+        throw error;
+    }
+};
+
 
 // Rest of the service remains the same
 export const getSolution = async (inputParameterId) => {

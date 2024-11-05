@@ -4,6 +4,7 @@ import WalletSection from '../components/WalletSection/WalletSection';
 import VideoSection from '../components/VideoSection/VideoSection';
 import BuyCoinsSection from '../components/BuyCoinsSection/BuyCoinsSection';
 import { handlePaymentReturn } from '../services/transactionService';
+import VideoHistory from '../components/VideoSection/VideoHistory';
 
 const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
@@ -115,7 +116,7 @@ const UserDashboard = () => {
       </div>
 
       {activeTab === 'wallet' && <WalletSection />}
-      {activeTab === 'videos' && <div>Videos section is in development...</div>}
+      {activeTab === 'videos' && <VideoHistory />}
       {activeTab === 'coins' && <BuyCoinsSection />}
 
       <PaymentResultModal
