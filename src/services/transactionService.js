@@ -3,7 +3,7 @@ import CryptoJS from 'crypto-js';
 
 const API_URL = "https://mindmath.azurewebsites.net/api";
 const VNPAY_CONFIG = {
-    returnUrl: "https://mindmath.live",
+    returnUrl: "https://www.mindmath.live/user-dashboard",
     ipnUrl: "https://mindmath.azurewebsites.net/api/transactions/IPN",
     tmnCode: "OSTQ4K61",
     hashSecret: "6E4H3847V9B6752M23DBR3QHJKF62DWI",

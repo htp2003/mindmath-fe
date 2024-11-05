@@ -9,6 +9,7 @@ import {
     submitInput,
     getSolution
 } from '../../services/videoService';
+import LoadingVideoGenerator from '../../components/LoadingVideoGenerator/LoadingVideoGenerator';
 
 const CreateVideo = () => {
     const [step, setStep] = useState(1);
@@ -23,11 +24,11 @@ const CreateVideo = () => {
     const [problemTypes, setProblemTypes] = useState([]);
 
     // Selected values
-    const [selectedSubject, setSelectedSubject] = useState('');
-    const [selectedChapter, setSelectedChapter] = useState('');
-    const [selectedTopic, setSelectedTopic] = useState('');
-    const [selectedProblemType, setSelectedProblemType] = useState('');
-    const [inputs, setInputs] = useState('');
+    const [selectedSubject, setSelectedSubject] = useState(null);
+    const [selectedChapter, setSelectedChapter] = useState(null);
+    const [selectedTopic, setSelectedTopic] = useState(null);
+    const [selectedProblemType, setSelectedProblemType] = useState(null);
+    const [inputs, setInputs] = useState([]);
     const [numberOfInputs, setNumberOfInputs] = useState(0);
 
     useEffect(() => {
@@ -61,9 +62,9 @@ const CreateVideo = () => {
                     const data = await getChapters(selectedSubject);
                     setChapters(data);
                     // Reset subsequent selections
-                    setSelectedChapter('');
-                    setSelectedTopic('');
-                    setSelectedProblemType('');
+                    setSelectedChapter(null);
+                    setSelectedTopic(null);
+                    setSelectedProblemType(null);
                     setTopics([]);
                     setProblemTypes([]);
                 } catch (err) {
@@ -83,8 +84,8 @@ const CreateVideo = () => {
                     const data = await getTopics(selectedChapter);
                     setTopics(data);
                     // Reset subsequent selections
-                    setSelectedTopic('');
-                    setSelectedProblemType('');
+                    setSelectedTopic(null);
+                    setSelectedProblemType(null);
                     setProblemTypes([]);
                 } catch (err) {
                     setError('Failed to load topics');
@@ -102,7 +103,7 @@ const CreateVideo = () => {
                 try {
                     const data = await getProblemTypes(selectedTopic);
                     setProblemTypes(data);
-                    setSelectedProblemType('');
+                    setSelectedProblemType(null);
                     setInputs([]);
                     setNumberOfInputs(0);
                 } catch (err) {
@@ -146,10 +147,10 @@ const CreateVideo = () => {
                     setVideoUrl(solution.link);
                     setStep(3);
                 } catch (err) {
-                    setError(`Failed to get solution: ${err.message}`);
+                    setError(`Server is busy, please try again later`);
                     setStep(1);
                 }
-            }, 30000);
+            }, 65000);
         } catch (err) {
             setError(err.message);
             console.error(err);
@@ -214,92 +215,96 @@ const CreateVideo = () => {
                 {step === 1 && (
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {/* Subject Selection */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Subject
-                            </label>
-                            <select
-                                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
-                                value={selectedSubject}
-                                onChange={(e) => setSelectedSubject(e.target.value)}
-                                required
-                                disabled={loading}
-                            >
-                                <option value="">Select a subject</option>
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold">Select a Subject</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 {subjects.map((subject) => (
-                                    <option key={subject.id} value={subject.id}>
-                                        {subject.name}
-                                    </option>
+                                    <div
+                                        key={subject.id}
+                                        className={`bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition-colors ${selectedSubject === subject.id ? "bg-gray-100" : ""
+                                            }`}
+                                        onClick={() => setSelectedSubject(subject.id)}
+                                    >
+                                        <h3 className="text-lg font-semibold">{subject.name}</h3>
+                                        {selectedSubject === subject.id && (
+                                            <div className="mt-2">
+                                                <ChevronRight className="w-5 h-5 text-gray-500" />
+                                            </div>
+                                        )}
+                                    </div>
                                 ))}
-                            </select>
+                            </div>
                         </div>
 
                         {/* Chapter Selection */}
                         {selectedSubject && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Chapter
-                                </label>
-                                <select
-                                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
-                                    value={selectedChapter}
-                                    onChange={(e) => setSelectedChapter(e.target.value)}
-                                    required
-                                    disabled={loading}
-                                >
-                                    <option value="">Select a chapter</option>
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold">Select a Chapter</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                     {chapters.map((chapter) => (
-                                        <option key={chapter.id} value={chapter.id}>
-                                            {chapter.name}
-                                        </option>
+                                        <div
+                                            key={chapter.id}
+                                            className={`bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition-colors ${selectedChapter === chapter.id ? "bg-gray-100" : ""
+                                                }`}
+                                            onClick={() => setSelectedChapter(chapter.id)}
+                                        >
+                                            <h3 className="text-lg font-semibold">{chapter.name}</h3>
+                                            {selectedChapter === chapter.id && (
+                                                <div className="mt-2">
+                                                    <ChevronRight className="w-5 h-5 text-gray-500" />
+                                                </div>
+                                            )}
+                                        </div>
                                     ))}
-                                </select>
+                                </div>
                             </div>
                         )}
 
                         {/* Topic Selection */}
                         {selectedChapter && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Topic
-                                </label>
-                                <select
-                                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
-                                    value={selectedTopic}
-                                    onChange={(e) => setSelectedTopic(e.target.value)}
-                                    required
-                                    disabled={loading}
-                                >
-                                    <option value="">Select a topic</option>
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold">Select a Topic</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                     {topics.map((topic) => (
-                                        <option key={topic.id} value={topic.id}>
-                                            {topic.name}
-                                        </option>
+                                        <div
+                                            key={topic.id}
+                                            className={`bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition-colors ${selectedTopic === topic.id ? "bg-gray-100" : ""
+                                                }`}
+                                            onClick={() => setSelectedTopic(topic.id)}
+                                        >
+                                            <h3 className="text-lg font-semibold">{topic.name}</h3>
+                                            {selectedTopic === topic.id && (
+                                                <div className="mt-2">
+                                                    <ChevronRight className="w-5 h-5 text-gray-500" />
+                                                </div>
+                                            )}
+                                        </div>
                                     ))}
-                                </select>
+                                </div>
                             </div>
                         )}
 
                         {/* Problem Type Selection */}
                         {selectedTopic && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Problem Type
-                                </label>
-                                <select
-                                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
-                                    value={selectedProblemType}
-                                    onChange={(e) => setSelectedProblemType(e.target.value)}
-                                    required
-                                    disabled={loading}
-                                >
-                                    <option value="">Select a problem type</option>
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold">Select a Problem Type</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                     {problemTypes.map((type) => (
-                                        <option key={type.id} value={type.id}>
-                                            {type.name}
-                                        </option>
+                                        <div
+                                            key={type.id}
+                                            className={`bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition-colors ${selectedProblemType === type.id ? "bg-gray-100" : ""
+                                                }`}
+                                            onClick={() => setSelectedProblemType(type.id)}
+                                        >
+                                            <h3 className="text-lg font-semibold">{type.name}</h3>
+                                            {selectedProblemType === type.id && (
+                                                <div className="mt-2">
+                                                    <ChevronRight className="w-5 h-5 text-gray-500" />
+                                                </div>
+                                            )}
+                                        </div>
                                     ))}
-                                </select>
+                                </div>
                             </div>
                         )}
 
@@ -321,10 +326,7 @@ const CreateVideo = () => {
 
                 {/* Loading State */}
                 {step === 2 && (
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-                        <p className="mt-4 text-xl">Generating your video... This will take a while</p>
-                    </div>
+                    <LoadingVideoGenerator timeToGenerate={65000} />
                 )}
 
                 {/* Video Result */}
