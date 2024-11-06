@@ -33,16 +33,31 @@ const BuyCoinsSection = () => {
         }
 
         if (hasVnpParams) {
+            // Log trước khi xử lý
+            console.log('Starting payment return handling...');
+            console.log('URL Params:', vnpParams);
+
             const result = handlePaymentReturn(vnpParams);
+
+            // Log kết quả
+            console.log('Payment Result:', result);
+
             if (result.isValid && result.isSuccess) {
-                // Hiển thị thông báo thành công
                 alert('Payment successful!');
             } else {
-                // Hiển thị thông báo thất bại
+                // Log chi tiết hơn về lỗi
+                console.log('Payment validation failed:', {
+                    isValid: result.isValid,
+                    isSuccess: result.isSuccess,
+                    message: result.message
+                });
                 alert('Payment failed: ' + result.message);
             }
-            // Xóa query params
-            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Delay việc xóa query params
+            setTimeout(() => {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }, 2000); // Delay 2 giây
         }
     }, []);
 
