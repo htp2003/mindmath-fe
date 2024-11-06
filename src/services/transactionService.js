@@ -14,23 +14,61 @@ const VNPAY_CONFIG = {
 
 // Create signature for VNPay
 const createSignature = (params, secretKey) => {
-    // Sort parameters by key
+    // Convert params to UTF-8 if needed
+    const normalizedParams = {};
+    Object.keys(params).forEach(key => {
+        if (params[key] !== '' && params[key] !== null && params[key] !== undefined) {
+            // Ensure the value is a string and normalize it
+            normalizedParams[key] = String(params[key]).replace(/\+/g, ' ');
+        }
+    });
+
+    // Sort parameters by key (case-sensitive ASCII sort)
     const sortedParams = {};
-    Object.keys(params)
-        .sort()
+    Object.keys(normalizedParams)
+        .sort((a, b) => a.localeCompare(b, 'en'))
         .forEach(key => {
-            if (params[key] !== '' && params[key] !== null && params[key] !== undefined) {
-                sortedParams[key] = params[key];
-            }
+            sortedParams[key] = normalizedParams[key];
         });
 
-    // Create query string
-    const signData = Object.keys(sortedParams)
-        .map(key => `${key}=${sortedParams[key]}`)
+    // Create query string with encoded values
+    const signData = Object.entries(sortedParams)
+        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
         .join('&');
 
     // Create HMAC SHA512 signature
-    return CryptoJS.HmacSHA512(signData, secretKey).toString(CryptoJS.enc.Hex);
+    const hmac = CryptoJS.HmacSHA512(signData, secretKey);
+    return hmac.toString(CryptoJS.enc.Hex).toLowerCase();
+};
+
+// Function to verify VNPay response
+const verifyVNPayResponse = (queryParams) => {
+    const vnpParams = {};
+
+    // Extract and normalize VNPay parameters
+    Object.keys(queryParams).forEach(key => {
+        if (key.startsWith('vnp_')) {
+            // Replace '+' with space and decode URI components
+            vnpParams[key] = decodeURIComponent(queryParams[key].replace(/\+/g, ' '));
+        }
+    });
+
+    // Store and remove secure hash from params
+    const receivedHash = vnpParams.vnp_SecureHash;
+    delete vnpParams.vnp_SecureHash;
+    delete vnpParams.vnp_SecureHashType;
+
+    // Calculate new hash
+    const calculatedHash = createSignature(vnpParams, VNPAY_CONFIG.hashSecret);
+
+    console.log('Normalized Params:', vnpParams);
+    console.log('Received Hash:', receivedHash);
+    console.log('Calculated Hash:', calculatedHash);
+
+    return {
+        isValid: receivedHash.toLowerCase() === calculatedHash.toLowerCase(),
+        vnpParams
+    };
 };
 
 
@@ -67,40 +105,12 @@ export const createTransaction = async (userId, amount, description) => {
 // Handle payment return with proper validation
 export const handlePaymentReturn = (queryParams) => {
     console.group('Payment Return Processing');
-    const vnpParams = {};
-
-    // Extract VNPay parameters
-    Object.keys(queryParams).forEach(key => {
-        if (key.startsWith('vnp_')) {
-            vnpParams[key] = queryParams[key];
-        }
-    });
-
-    // Log toàn bộ params nhận được
-    console.log('VNPay Params:', vnpParams);
-
-    // Log mã response
-    console.log('Response Code:', vnpParams.vnp_ResponseCode);
-
-    // Extract secure hash
-    const secureHash = vnpParams.vnp_SecureHash;
-    delete vnpParams.vnp_SecureHash;
-    delete vnpParams.vnp_SecureHashType;
-
-    // Log secure hash nhận được từ VNPay
-    console.log('Secure Hash:', secureHash);
-
-    // Calculate signature for comparison
-    const calculatedHash = createSignature(vnpParams, VNPAY_CONFIG.hashSecret);
-
-    // Log secure hash được tính toán từ code
-    console.log('Calculated Hash:', calculatedHash);
-    console.log('Hashes Match:', secureHash === calculatedHash);
+    const { isValid, vnpParams } = verifyVNPayResponse(queryParams);
 
     console.groupEnd();
 
     return {
-        isValid: secureHash === calculatedHash,
+        isValid,
         isSuccess: vnpParams.vnp_ResponseCode === '00',
         transactionId: vnpParams.vnp_TxnRef,
         amount: parseInt(vnpParams.vnp_Amount) / 100,
