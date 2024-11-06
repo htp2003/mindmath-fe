@@ -9,6 +9,7 @@ import {
 } from "../../services/videoService";
 import { getCurrentUser } from "../../services/authServices";
 import VideoPlayer from "../VideoPlayer/VideoPlayer";
+import { Input } from 'antd';
 
 const VideoHistory = () => {
     const [userId, setUserId] = useState(null);
@@ -221,7 +222,7 @@ const VideoHistory = () => {
                                 className="bg-white rounded-lg shadow-md p-4"
                             >
                                 <h4 className="text-lg font-semibold">
-                                    {inputParam.name || `Input Param ${inputParam.id}`}
+                                    {inputParam.input || `Input Param ${inputParam.input}`}
                                 </h4>
                                 <button
                                     onClick={() => handleInputParamClick(inputParam.id)}
