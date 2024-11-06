@@ -15,41 +15,32 @@ const VNPAY_CONFIG = {
 const createSignature = (params, secretKey) => {
     console.group('Signature Creation Debug');
 
-    // Log input params
-    console.log('Input Params:', params);
-    console.log('Secret Key:', secretKey);
+    // Step 1: Normalize and sort params
+    const sortedParams = Object.keys(params)
+        .filter(key => params[key] !== '' && params[key] !== null && params[key] !== undefined)
+        .sort()
+        .reduce((acc, key) => {
+            // Convert all values to string and replace spaces with plus
+            acc[key] = String(params[key]).replace(/ /g, '+');
+            return acc;
+        }, {});
 
-    // Step 1: Normalize params
-    const normalizedParams = {};
-    Object.keys(params).forEach(key => {
-        if (params[key] !== '' && params[key] !== null && params[key] !== undefined) {
-            normalizedParams[key] = String(params[key])
-                .replace(/\+/g, ' ')
-                .trim();
-        }
-    });
-    console.log('Normalized Params:', normalizedParams);
+    console.log('Sorted and Normalized Params:', sortedParams);
 
-    // Step 2: Sort params (case-sensitive)
-    const sortedKeys = Object.keys(normalizedParams).sort();
-    const sortedParams = {};
-    sortedKeys.forEach(key => {
-        sortedParams[key] = normalizedParams[key];
-    });
-    console.log('Sorted Params:', sortedParams);
-
-    // Step 3: Build query string WITHOUT URL encoding
+    // Step 2: Create query string with plus signs instead of spaces
     const signData = Object.entries(sortedParams)
         .map(([key, value]) => `${key}=${value}`)
         .join('&');
-    console.log('Sign Data (Raw Query String):', signData);
 
-    // Step 4: Create HMAC SHA512
+    console.log('Sign Data:', signData);
+
+    // Step 3: Create HMAC SHA512
     const hmac = CryptoJS.HmacSHA512(signData, secretKey);
     const signature = hmac.toString(CryptoJS.enc.Hex);
-    console.log('Final Signature:', signature);
 
+    console.log('Final Signature:', signature);
     console.groupEnd();
+
     return signature;
 };
 
@@ -60,33 +51,37 @@ const verifyVNPayResponse = (queryParams) => {
     const vnpParams = {};
     Object.keys(queryParams).forEach(key => {
         if (key.startsWith('vnp_')) {
-            // Do not decode parameters at this stage
+            // Keep original value without decoding
             vnpParams[key] = queryParams[key];
         }
     });
-    console.log('Extracted VNPay Params:', vnpParams);
+
+    // Log original params for debugging
+    console.log('Original VNPay Params:', vnpParams);
 
     // Store and remove secure hash
     const receivedHash = vnpParams.vnp_SecureHash;
     delete vnpParams.vnp_SecureHash;
     delete vnpParams.vnp_SecureHashType;
-    console.log('Params for Signature:', vnpParams);
 
     // Calculate new hash
     const calculatedHash = createSignature(vnpParams, VNPAY_CONFIG.hashSecret);
 
+    // Compare hashes (case-insensitive)
+    const hashesMatch = receivedHash.toLowerCase() === calculatedHash.toLowerCase();
+
     console.log('Hash Comparison:');
     console.log('Received Hash:', receivedHash);
     console.log('Calculated Hash:', calculatedHash);
-    console.log('Hashes Match:', receivedHash.toLowerCase() === calculatedHash.toLowerCase());
+    console.log('Hashes Match:', hashesMatch);
 
     console.groupEnd();
+
     return {
-        isValid: receivedHash.toLowerCase() === calculatedHash.toLowerCase(),
+        isValid: hashesMatch,
         vnpParams
     };
 };
-
 // Use this function to test with sample data
 const testSignatureCreation = () => {
     const sampleParams = {
@@ -139,10 +134,6 @@ export const createTransaction = async (userId, amount, description) => {
 // Handle payment return with proper validation
 export const handlePaymentReturn = (queryParams) => {
     const { isValid, vnpParams } = verifyVNPayResponse(queryParams);
-
-    // Also run test with sample data for comparison
-    console.log('\nRunning test with sample data for comparison:');
-    testSignatureCreation();
 
     return {
         isValid,
