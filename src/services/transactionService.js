@@ -13,6 +13,8 @@ const VNPAY_CONFIG = {
 
 
 // Create signature for VNPay
+import CryptoJS from 'crypto-js';
+
 const createSignature = (params, secretKey) => {
     // Convert params to UTF-8 if needed
     const normalizedParams = {};
@@ -70,7 +72,6 @@ const verifyVNPayResponse = (queryParams) => {
         vnpParams
     };
 };
-
 
 export const createTransaction = async (userId, amount, description) => {
     try {
