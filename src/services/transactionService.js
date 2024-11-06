@@ -13,63 +13,99 @@ const VNPAY_CONFIG = {
 
 
 const createSignature = (params, secretKey) => {
-    // Convert params to UTF-8 if needed
+    console.group('Signature Creation Debug');
+
+    // Log input params
+    console.log('Input Params:', params);
+    console.log('Secret Key:', secretKey);
+
+    // Step 1: Normalize params
     const normalizedParams = {};
     Object.keys(params).forEach(key => {
         if (params[key] !== '' && params[key] !== null && params[key] !== undefined) {
-            // Ensure the value is a string and normalize it
-            normalizedParams[key] = String(params[key]).replace(/\+/g, ' ');
+            normalizedParams[key] = String(params[key])
+                .replace(/\+/g, ' ')
+                .trim();
         }
     });
+    console.log('Normalized Params:', normalizedParams);
 
-    // Sort parameters by key (case-sensitive ASCII sort)
+    // Step 2: Sort params (case-sensitive)
+    const sortedKeys = Object.keys(normalizedParams).sort();
     const sortedParams = {};
-    Object.keys(normalizedParams)
-        .sort((a, b) => a.localeCompare(b, 'en'))
-        .forEach(key => {
-            sortedParams[key] = normalizedParams[key];
-        });
+    sortedKeys.forEach(key => {
+        sortedParams[key] = normalizedParams[key];
+    });
+    console.log('Sorted Params:', sortedParams);
 
-    // Create query string with encoded values
+    // Step 3: Build query string WITHOUT URL encoding
     const signData = Object.entries(sortedParams)
-        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+        .map(([key, value]) => `${key}=${value}`)
         .join('&');
+    console.log('Sign Data (Raw Query String):', signData);
 
-    // Create HMAC SHA512 signature
+    // Step 4: Create HMAC SHA512
     const hmac = CryptoJS.HmacSHA512(signData, secretKey);
-    return hmac.toString(CryptoJS.enc.Hex).toLowerCase();
+    const signature = hmac.toString(CryptoJS.enc.Hex);
+    console.log('Final Signature:', signature);
+
+    console.groupEnd();
+    return signature;
 };
 
-// Function to verify VNPay response
 const verifyVNPayResponse = (queryParams) => {
-    const vnpParams = {};
+    console.group('VNPay Response Verification');
 
-    // Extract and normalize VNPay parameters
+    // Extract VNPay parameters
+    const vnpParams = {};
     Object.keys(queryParams).forEach(key => {
         if (key.startsWith('vnp_')) {
-            // Replace '+' with space and decode URI components
-            vnpParams[key] = decodeURIComponent(queryParams[key].replace(/\+/g, ' '));
+            // Do not decode parameters at this stage
+            vnpParams[key] = queryParams[key];
         }
     });
+    console.log('Extracted VNPay Params:', vnpParams);
 
-    // Store and remove secure hash from params
+    // Store and remove secure hash
     const receivedHash = vnpParams.vnp_SecureHash;
     delete vnpParams.vnp_SecureHash;
     delete vnpParams.vnp_SecureHashType;
+    console.log('Params for Signature:', vnpParams);
 
     // Calculate new hash
     const calculatedHash = createSignature(vnpParams, VNPAY_CONFIG.hashSecret);
 
-    console.log('Normalized Params:', vnpParams);
+    console.log('Hash Comparison:');
     console.log('Received Hash:', receivedHash);
     console.log('Calculated Hash:', calculatedHash);
+    console.log('Hashes Match:', receivedHash.toLowerCase() === calculatedHash.toLowerCase());
 
+    console.groupEnd();
     return {
         isValid: receivedHash.toLowerCase() === calculatedHash.toLowerCase(),
         vnpParams
     };
 };
 
+// Use this function to test with sample data
+const testSignatureCreation = () => {
+    const sampleParams = {
+        vnp_Amount: '19000000',
+        vnp_BankCode: 'NCB',
+        vnp_BankTranNo: 'VNP14655543',
+        vnp_CardType: 'ATM',
+        vnp_OrderInfo: 'Payment for order 325b292a-e0d7-483c-a900-0d399e3cccb7',
+        vnp_PayDate: '20240307210914',
+        vnp_ResponseCode: '00',
+        vnp_TmnCode: 'OSTQ4K61',
+        vnp_TransactionNo: '14655543',
+        vnp_TransactionStatus: '00',
+        vnp_TxnRef: '325b292a-e0d7-483c-a900-0d399e3cccb7'
+    };
+
+    console.log('Testing with sample data:');
+    createSignature(sampleParams, VNPAY_CONFIG.hashSecret);
+};
 export const createTransaction = async (userId, amount, description) => {
     try {
         const token = localStorage.getItem("token");
@@ -102,10 +138,11 @@ export const createTransaction = async (userId, amount, description) => {
 
 // Handle payment return with proper validation
 export const handlePaymentReturn = (queryParams) => {
-    console.group('Payment Return Processing');
     const { isValid, vnpParams } = verifyVNPayResponse(queryParams);
 
-    console.groupEnd();
+    // Also run test with sample data for comparison
+    console.log('\nRunning test with sample data for comparison:');
+    testSignatureCreation();
 
     return {
         isValid,
