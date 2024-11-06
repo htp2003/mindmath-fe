@@ -133,7 +133,7 @@ export const createTransaction = async (userId, amount, description) => {
 
         // API call to create a transaction and get the VNPay URL
         const response = await axios.post(
-            `${API_URL}/transactions/create?userId=${userId}`,
+            `${API_URL}/transactions/web/create?userId=${userId}`,
             {
                 amount: amount,
                 description: description,

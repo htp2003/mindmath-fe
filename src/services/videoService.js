@@ -85,7 +85,7 @@ export const getInputParam = async (problemTypeId, userId) => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.get(
-            `${API_URL}/problem-types/${problemTypeId}/users/${userId}/input-parameters`,
+            `${API_URL}/problem-types/${problemTypeId}/users/${userId}/input-parameters/active`,
             {
                 headers: { Authorization: `Bearer ${token}` },
             }
