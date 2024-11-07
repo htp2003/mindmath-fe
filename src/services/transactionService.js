@@ -137,69 +137,83 @@ export const createTransaction = async (userId, amount, description) => {
 export const handlePaymentReturn = async (queryParams) => {
     const { isValid, vnpParams } = verifyVNPayResponse(queryParams);
 
-    if (isValid && vnpParams.vnp_ResponseCode === '00') {
-        try {
-            // Kiểm tra xem giao dịch đã được lưu trong localStorage chưa
-            const pendingTransaction = JSON.parse(localStorage.getItem('pendingTransaction'));
-            if (pendingTransaction && pendingTransaction.amount === parseInt(vnpParams.vnp_Amount) / 100) {
-                // Gọi API để đánh dấu giao dịch là thành công
-                await axios.get(`${API_URL}/transactions/ReturnUrl`, {
-                    params: {
-                        vnp_Amount: vnpParams.vnp_Amount,
-                        vnp_Command: 'pay',
-                        vnp_CreateDate: vnpParams.vnp_CreateDate,
-                        vnp_CurrCode: vnpParams.vnp_CurrCode,
-                        vnp_IpAddr: vnpParams.vnp_IpAddr,
-                        vnp_Locale: vnpParams.vnp_Locale,
-                        vnp_OrderInfo: vnpParams.vnp_OrderInfo,
-                        vnp_OrderType: vnpParams.vnp_OrderType,
-                        vnp_ReturnUrl: vnpParams.vnp_ReturnUrl,
-                        vnp_TmnCode: vnpParams.vnp_TmnCode,
-                        vnp_TxnRef: vnpParams.vnp_TxnRef,
-                        vnp_Version: vnpParams.vnp_Version,
-                        vnp_SecureHash: vnpParams.vnp_SecureHash
-                    }
-                });
-
-                // Xóa thông tin giao dịch đang chờ từ localStorage
-                localStorage.removeItem('pendingTransaction');
-
-                console.log("Transaction marked as successful");
-                return {
-                    isValid,
-                    isSuccess: true,
-                    transactionId: vnpParams.vnp_TxnRef,
-                    amount: parseInt(vnpParams.vnp_Amount) / 100,
-                    message: vnpParams.vnp_OrderInfo
-                };
-            } else {
-                console.error("Pending transaction not found or amount mismatch");
-                return {
-                    isValid,
-                    isSuccess: false,
-                    transactionId: vnpParams.vnp_TxnRef,
-                    amount: parseInt(vnpParams.vnp_Amount) / 100,
-                    message: 'Payment failed: Pending transaction not found or amount mismatch'
-                };
-            }
-        } catch (error) {
-            console.error("Error marking transaction as successful:", error);
-            return {
-                isValid,
-                isSuccess: false,
-                transactionId: vnpParams.vnp_TxnRef,
-                amount: parseInt(vnpParams.vnp_Amount) / 100,
-                message: 'Payment failed: ' + error.message
-            };
-        }
-    } else {
+    // Make sure vnpParams exists and has required properties
+    if (!vnpParams || !vnpParams.vnp_Amount || !vnpParams.vnp_ResponseCode) {
         return {
-            isValid,
+            isValid: false,
             isSuccess: false,
-            transactionId: vnpParams.vnp_TxnRef,
-            amount: parseInt(vnpParams.vnp_Amount) / 100,
-            message: 'Payment failed: ' + (vnpParams.vnp_ResponseCode !== '00' ? vnpParams.vnp_ResponseCode : 'Invalid response')
+            message: 'Invalid payment response parameters'
         };
     }
-}
+
+    // Check if the payment was successful according to VNPay
+    const isPaymentSuccessful = vnpParams.vnp_ResponseCode === '00';
+
+    if (isValid && isPaymentSuccessful) {
+        try {
+            const pendingTransaction = localStorage.getItem('pendingTransaction');
+            const parsedTransaction = pendingTransaction ? JSON.parse(pendingTransaction) : null;
+            const expectedAmount = parsedTransaction ? parsedTransaction.amount : 0;
+            const receivedAmount = parseInt(vnpParams.vnp_Amount) / 100;
+
+            // Verify amount matches (with some tolerance for floating-point comparison)
+            const amountMatches = Math.abs(expectedAmount - receivedAmount) < 1;
+
+            if (!pendingTransaction || !amountMatches) {
+                console.warn('Transaction amount mismatch or missing pending transaction');
+                console.log('Expected:', expectedAmount, 'Received:', receivedAmount);
+                return {
+                    isValid: true,
+                    isSuccess: false,
+                    message: 'Transaction amount mismatch or missing transaction data'
+                };
+            }
+
+            // Call API to confirm transaction
+            const response = await axios.get(`${API_URL}/transactions/ReturnUrl`, {
+                params: {
+                    vnp_Amount: vnpParams.vnp_Amount,
+                    vnp_Command: vnpParams.vnp_Command || 'pay',
+                    vnp_CreateDate: vnpParams.vnp_CreateDate,
+                    vnp_CurrCode: vnpParams.vnp_CurrCode,
+                    vnp_IpAddr: vnpParams.vnp_IpAddr,
+                    vnp_Locale: vnpParams.vnp_Locale,
+                    vnp_OrderInfo: vnpParams.vnp_OrderInfo,
+                    vnp_OrderType: vnpParams.vnp_OrderType,
+                    vnp_ReturnUrl: vnpParams.vnp_ReturnUrl,
+                    vnp_TmnCode: vnpParams.vnp_TmnCode,
+                    vnp_TxnRef: vnpParams.vnp_TxnRef,
+                    vnp_Version: vnpParams.vnp_Version,
+                    vnp_SecureHash: vnpParams.vnp_SecureHash
+                }
+            });
+
+            if (response.status === 200) {
+                return {
+                    isValid: true,
+                    isSuccess: true,
+                    transactionId: vnpParams.vnp_TxnRef,
+                    amount: receivedAmount,
+                    message: 'Payment completed successfully'
+                };
+            } else {
+                throw new Error('Failed to confirm transaction with backend');
+            }
+
+        } catch (error) {
+            console.error("Error processing payment confirmation:", error);
+            return {
+                isValid: true,
+                isSuccess: false,
+                message: 'Error confirming payment with server: ' + (error.message || 'Unknown error')
+            };
+        }
+    }
+
+    return {
+        isValid,
+        isSuccess: false,
+        message: isValid ? 'Payment was declined or cancelled' : 'Invalid payment signature'
+    };
+};
 

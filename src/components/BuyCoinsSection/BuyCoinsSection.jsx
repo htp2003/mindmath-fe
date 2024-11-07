@@ -16,52 +16,66 @@ const BuyCoinsSection = () => {
     const [customAmount, setCustomAmount] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(false);
     const [transactionData, setTransactionData] = useState(null);
 
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const vnpParams = {};
-        let hasVnpParams = false;
+        const handlePaymentCallback = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const vnpParams = {};
+            let hasVnpParams = false;
 
-        for (const [key, value] of urlParams.entries()) {
-            if (key.startsWith('vnp_')) {
-                vnpParams[key] = value;
-                hasVnpParams = true;
+            for (const [key, value] of urlParams.entries()) {
+                if (key.startsWith('vnp_')) {
+                    vnpParams[key] = value;
+                    hasVnpParams = true;
+                }
             }
-        }
 
-        if (hasVnpParams) {
-            console.log('Starting payment return handling...');
-            console.log('URL Params:', vnpParams);
+            if (hasVnpParams) {
+                setLoading(true);
+                try {
+                    console.log('Starting payment return handling...');
+                    const result = await handlePaymentReturn(vnpParams);
 
-            handlePaymentReturn(vnpParams)
-                .then((result) => {
+                    // Check for both validation and response code
                     if (result.isValid && result.isSuccess) {
-                        alert('Payment successful!');
+                        setSuccess(true);
+                        setError(null);
+                        // Clear pending transaction after successful payment
+                        localStorage.removeItem('pendingTransaction');
                     } else {
                         console.log('Payment validation failed:', result);
-                        alert('Payment failed: ' + result.message);
+                        setError(result.message || 'Payment verification failed');
+                        setSuccess(false);
                     }
-                })
-                .catch((error) => {
+                } catch (error) {
                     console.error('Error handling payment return:', error);
-                    alert('An error occurred during the payment process. Please try again later.');
-                })
-                .finally(() => {
-                    // Delay removing the query params to allow the user to see the alert
-                    setTimeout(() => {
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    }, 2000);
-                });
-        } else {
-            // Kiểm tra và hiển thị thông tin giao dịch đang chờ
-            const pendingTransaction = JSON.parse(localStorage.getItem('pendingTransaction'));
-            if (pendingTransaction) {
-                setSelectedPackage(COIN_PACKAGES.find(pkg => pkg.price === pendingTransaction.amount));
-                setCustomAmount(pendingTransaction.coins.toString());
-                setTransactionData(pendingTransaction);
+                    setError('An error occurred during payment verification. Please contact support if your balance is not updated.');
+                    setSuccess(false);
+                } finally {
+                    setLoading(false);
+                    // Clean up URL params
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } else {
+                // Check for pending transaction
+                const pendingTransaction = localStorage.getItem('pendingTransaction');
+                if (pendingTransaction) {
+                    try {
+                        const parsed = JSON.parse(pendingTransaction);
+                        setSelectedPackage(COIN_PACKAGES.find(pkg => pkg.price === parsed.amount));
+                        setCustomAmount(parsed.coins.toString());
+                        setTransactionData(parsed);
+                    } catch (e) {
+                        console.error('Error parsing pending transaction:', e);
+                        localStorage.removeItem('pendingTransaction');
+                    }
+                }
             }
-        }
+        };
+
+        handlePaymentCallback();
     }, []);
 
     const handlePackageSelect = (pkg) => {
@@ -121,6 +135,19 @@ const BuyCoinsSection = () => {
 
     return (
         <div className="container mx-auto p-4">
+            {loading && (
+                <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-4">
+                    <span className="block sm:inline">Processing payment...</span>
+                </div>
+            )}
+
+            {success && (
+                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
+                    <strong className="font-bold">Success!</strong>
+                    <span className="block sm:inline"> Payment completed successfully.</span>
+                </div>
+            )}
+
             {error && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
                     <strong className="font-bold">Error!</strong>
