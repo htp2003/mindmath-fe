@@ -17,7 +17,7 @@ const BuyCoinsSection = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
-    const [transactionData, setTransactionData] = useState(null);
+    const [processedTransactions] = useState(new Set()); // Track processed transactions
 
     useEffect(() => {
         const handlePaymentCallback = async () => {
@@ -32,50 +32,52 @@ const BuyCoinsSection = () => {
                 }
             }
 
-            if (hasVnpParams) {
+            // Only process if we have VNPay params and haven't processed this transaction yet
+            if (hasVnpParams && vnpParams.vnp_TxnRef && !processedTransactions.has(vnpParams.vnp_TxnRef)) {
                 setLoading(true);
                 try {
                     console.log('Starting payment return handling...');
 
-                    // Simple check for successful VNPay response first
+                    // Add transaction to processed set before handling
+                    processedTransactions.add(vnpParams.vnp_TxnRef);
+
                     if (vnpParams.vnp_ResponseCode === '00') {
                         const result = await handlePaymentReturn(vnpParams);
                         console.log('Payment Return Result:', result);
 
-                        // If the API call was successful, show success
                         if (result.isSuccess) {
                             setSuccess(true);
                             setError(null);
                             localStorage.removeItem('pendingTransaction');
 
-                            // Reload the page after a delay to refresh balance
+                            // Use navigate instead of reload to prevent infinite loop
                             setTimeout(() => {
-                                window.location.reload();
+                                navigate('/user-dashboard', { replace: true });
                             }, 2000);
                             return;
                         }
                     }
 
-                    // If we get here, show error
                     setError('Payment verification failed. If your balance was charged, please contact support.');
                     setSuccess(false);
 
                 } catch (error) {
                     console.error('Error handling payment return:', error);
-                    setError('An error occurred during payment verification. If your balance was charged, please contact support.');
+                    setError('An error occurred during payment verification.');
                     setSuccess(false);
                 } finally {
                     setLoading(false);
-                    // Clean up URL params after a delay
-                    setTimeout(() => {
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    }, 2000);
+                    // Clean up URL params immediately using navigate
+                    navigate('/user-dashboard', {
+                        replace: true,
+                        state: { fromPayment: true }
+                    });
                 }
             }
         };
 
         handlePaymentCallback();
-    }, []);
+    }, []); // Empty dependency array since we only want this to run once
 
     const handlePackageSelect = (pkg) => {
         setSelectedPackage(pkg);
