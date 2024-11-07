@@ -38,6 +38,8 @@ const BuyCoinsSection = () => {
                 .then((result) => {
                     if (result.isValid && result.isSuccess) {
                         alert('Payment successful!');
+                        // Cập nhật số dư ví
+                        updateWallet();
                     } else {
                         console.log('Payment validation failed:', result);
                         alert('Payment failed: ' + result.message);
@@ -54,15 +56,20 @@ const BuyCoinsSection = () => {
                     }, 2000);
                 });
         } else {
-            // Kiểm tra và hiển thị thông tin giao dịch đang chờ
-            const pendingTransaction = JSON.parse(localStorage.getItem('pendingTransaction'));
-            if (pendingTransaction) {
-                setSelectedPackage(COIN_PACKAGES.find(pkg => pkg.price === pendingTransaction.amount));
-                setCustomAmount(pendingTransaction.coins.toString());
-                setTransactionData(pendingTransaction);
-            }
+            // ... (phần code hiện tại)
         }
     }, []);
+
+    const updateWallet = async () => {
+        try {
+            const currentUser = await getCurrentUser();
+            const walletBalance = await getWalletBalance(currentUser.id);
+            // Cập nhật số dư ví trong UI
+            setWalletBalance(walletBalance.balance);
+        } catch (error) {
+            console.error('Error fetching wallet balance:', error);
+        }
+    };
 
     const handlePackageSelect = (pkg) => {
         setSelectedPackage(pkg);
