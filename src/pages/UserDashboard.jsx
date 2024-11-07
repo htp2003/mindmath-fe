@@ -3,83 +3,29 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import WalletSection from '../components/WalletSection/WalletSection';
 import VideoSection from '../components/VideoSection/VideoSection';
 import BuyCoinsSection from '../components/BuyCoinsSection/BuyCoinsSection';
-import { handlePaymentReturn } from '../services/transactionService';
 import VideoHistory from '../components/VideoSection/VideoHistory';
 
 const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState('wallet');
-  const [paymentStatus, setPaymentStatus] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Check for VNPay return and switch to coins tab if necessary
   useEffect(() => {
-    const handlePaymentCallback = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const vnpParams = {};
-      let hasVnpParams = false;
+    const urlParams = new URLSearchParams(window.location.search);
+    let hasVnpParams = false;
 
-      // Kiểm tra xem có params từ VNPay không
-      for (const [key, value] of urlParams.entries()) {
-        if (key.startsWith('vnp_')) {
-          vnpParams[key] = value;
-          hasVnpParams = true;
-        }
+    for (const [key] of urlParams.entries()) {
+      if (key.startsWith('vnp_')) {
+        hasVnpParams = true;
+        break;
       }
+    }
 
-      if (hasVnpParams) {
-        const result = handlePaymentReturn(vnpParams);
-        setPaymentStatus(result);
-        setActiveTab('coins'); // Chuyển về tab coins để hiển thị kết quả
-
-        // Xóa query params
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    };
-
-    handlePaymentCallback();
+    if (hasVnpParams) {
+      setActiveTab('coins');
+    }
   }, [location.search]);
-
-  // Modal hiển thị kết quả thanh toán
-  const PaymentResultModal = ({ status, onClose }) => {
-    if (!status) return null;
-
-    return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-          {status.isValid && status.isSuccess ? (
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-green-600 mb-4">Payment Successful!</h2>
-              <p className="text-gray-600 mb-6">Your coins have been added to your account.</p>
-            </div>
-          ) : (
-            <div className="text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-red-600 mb-4">Payment Failed</h2>
-              <p className="text-gray-600 mb-6">{status.message}</p>
-            </div>
-          )}
-          <button
-            onClick={onClose}
-            className={`w-full py-2 px-4 rounded ${status.isValid && status.isSuccess
-              ? 'bg-green-500 hover:bg-green-600'
-              : 'bg-red-500 hover:bg-red-600'
-              } text-white transition-colors`}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="container mx-auto p-4">
@@ -118,11 +64,6 @@ const UserDashboard = () => {
       {activeTab === 'wallet' && <WalletSection />}
       {activeTab === 'videos' && <VideoHistory />}
       {activeTab === 'coins' && <BuyCoinsSection />}
-
-      <PaymentResultModal
-        status={paymentStatus}
-        onClose={() => setPaymentStatus(null)}
-      />
     </div>
   );
 };
