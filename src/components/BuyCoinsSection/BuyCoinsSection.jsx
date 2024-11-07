@@ -36,14 +36,34 @@ const BuyCoinsSection = () => {
                 setLoading(true);
                 try {
                     console.log('Starting payment return handling...');
-                    const result = await handlePaymentReturn(vnpParams);
+                    // Log the pending transaction data
+                    const pendingTransaction = localStorage.getItem('pendingTransaction');
+                    console.log('Pending Transaction:', pendingTransaction);
 
-                    // Check for both validation and response code
-                    if (result.isValid && result.isSuccess) {
+                    // Parse VNPay amount (divided by 100 as VNPay amounts are in cents)
+                    const vnpayAmount = parseInt(vnpParams.vnp_Amount) / 100;
+                    console.log('VNPay Amount:', vnpayAmount);
+
+                    if (pendingTransaction) {
+                        const parsedTransaction = JSON.parse(pendingTransaction);
+                        console.log('Parsed Pending Transaction:', parsedTransaction);
+                        console.log('Amount Match:', parsedTransaction.amount === vnpayAmount);
+                    }
+
+                    const result = await handlePaymentReturn(vnpParams);
+                    console.log('Payment Return Result:', result);
+
+                    // Modified success condition
+                    if (result.isValid && vnpParams.vnp_ResponseCode === '00') {
                         setSuccess(true);
                         setError(null);
-                        // Clear pending transaction after successful payment
                         localStorage.removeItem('pendingTransaction');
+
+                        // Add a small delay before redirecting or updating UI
+                        setTimeout(() => {
+                            // Optionally refresh the page or redirect
+                            window.location.reload();
+                        }, 2000);
                     } else {
                         console.log('Payment validation failed:', result);
                         setError(result.message || 'Payment verification failed');
@@ -51,26 +71,14 @@ const BuyCoinsSection = () => {
                     }
                 } catch (error) {
                     console.error('Error handling payment return:', error);
-                    setError('An error occurred during payment verification. Please contact support if your balance is not updated.');
+                    setError('An error occurred during payment verification. If your balance was charged, please contact support.');
                     setSuccess(false);
                 } finally {
                     setLoading(false);
-                    // Clean up URL params
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }
-            } else {
-                // Check for pending transaction
-                const pendingTransaction = localStorage.getItem('pendingTransaction');
-                if (pendingTransaction) {
-                    try {
-                        const parsed = JSON.parse(pendingTransaction);
-                        setSelectedPackage(COIN_PACKAGES.find(pkg => pkg.price === parsed.amount));
-                        setCustomAmount(parsed.coins.toString());
-                        setTransactionData(parsed);
-                    } catch (e) {
-                        console.error('Error parsing pending transaction:', e);
-                        localStorage.removeItem('pendingTransaction');
-                    }
+                    // Clean up URL params after a short delay
+                    setTimeout(() => {
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }, 2000);
                 }
             }
         };

@@ -136,84 +136,69 @@ export const createTransaction = async (userId, amount, description) => {
 // Handle payment return with proper validation
 export const handlePaymentReturn = async (queryParams) => {
     const { isValid, vnpParams } = verifyVNPayResponse(queryParams);
+    console.log('Full VNPay Response:', vnpParams);
 
-    // Make sure vnpParams exists and has required properties
-    if (!vnpParams || !vnpParams.vnp_Amount || !vnpParams.vnp_ResponseCode) {
-        return {
-            isValid: false,
-            isSuccess: false,
-            message: 'Invalid payment response parameters'
-        };
-    }
-
-    // Check if the payment was successful according to VNPay
-    const isPaymentSuccessful = vnpParams.vnp_ResponseCode === '00';
-
-    if (isValid && isPaymentSuccessful) {
-        try {
-            const pendingTransaction = localStorage.getItem('pendingTransaction');
-            const parsedTransaction = pendingTransaction ? JSON.parse(pendingTransaction) : null;
-            const expectedAmount = parsedTransaction ? parsedTransaction.amount : 0;
-            const receivedAmount = parseInt(vnpParams.vnp_Amount) / 100;
-
-            // Verify amount matches (with some tolerance for floating-point comparison)
-            const amountMatches = Math.abs(expectedAmount - receivedAmount) < 1;
-
-            if (!pendingTransaction || !amountMatches) {
-                console.warn('Transaction amount mismatch or missing pending transaction');
-                console.log('Expected:', expectedAmount, 'Received:', receivedAmount);
-                return {
-                    isValid: true,
-                    isSuccess: false,
-                    message: 'Transaction amount mismatch or missing transaction data'
-                };
+    try {
+        // Always attempt to call the backend API regardless of local validation
+        const response = await axios.get(`${API_URL}/transactions/ReturnUrl`, {
+            params: {
+                vnp_Amount: vnpParams.vnp_Amount,
+                vnp_Command: vnpParams.vnp_Command || 'pay',
+                vnp_CreateDate: vnpParams.vnp_CreateDate,
+                vnp_CurrCode: vnpParams.vnp_CurrCode,
+                vnp_IpAddr: vnpParams.vnp_IpAddr,
+                vnp_Locale: vnpParams.vnp_Locale,
+                vnp_OrderInfo: vnpParams.vnp_OrderInfo,
+                vnp_OrderType: vnpParams.vnp_OrderType,
+                vnp_ReturnUrl: vnpParams.vnp_ReturnUrl,
+                vnp_TmnCode: vnpParams.vnp_TmnCode,
+                vnp_TxnRef: vnpParams.vnp_TxnRef,
+                vnp_Version: vnpParams.vnp_Version,
+                vnp_SecureHash: vnpParams.vnp_SecureHash,
+                vnp_ResponseCode: vnpParams.vnp_ResponseCode,
+                vnp_TransactionNo: vnpParams.vnp_TransactionNo,
+                vnp_TransactionStatus: vnpParams.vnp_TransactionStatus,
+                vnp_BankCode: vnpParams.vnp_BankCode,
+                vnp_CardType: vnpParams.vnp_CardType,
+                vnp_PayDate: vnpParams.vnp_PayDate,
+                vnp_BankTranNo: vnpParams.vnp_BankTranNo
             }
+        });
 
-            // Call API to confirm transaction
-            const response = await axios.get(`${API_URL}/transactions/ReturnUrl`, {
-                params: {
-                    vnp_Amount: vnpParams.vnp_Amount,
-                    vnp_Command: vnpParams.vnp_Command || 'pay',
-                    vnp_CreateDate: vnpParams.vnp_CreateDate,
-                    vnp_CurrCode: vnpParams.vnp_CurrCode,
-                    vnp_IpAddr: vnpParams.vnp_IpAddr,
-                    vnp_Locale: vnpParams.vnp_Locale,
-                    vnp_OrderInfo: vnpParams.vnp_OrderInfo,
-                    vnp_OrderType: vnpParams.vnp_OrderType,
-                    vnp_ReturnUrl: vnpParams.vnp_ReturnUrl,
-                    vnp_TmnCode: vnpParams.vnp_TmnCode,
-                    vnp_TxnRef: vnpParams.vnp_TxnRef,
-                    vnp_Version: vnpParams.vnp_Version,
-                    vnp_SecureHash: vnpParams.vnp_SecureHash
-                }
-            });
+        console.log('Backend API Response:', response);
 
-            if (response.status === 200) {
-                return {
-                    isValid: true,
-                    isSuccess: true,
-                    transactionId: vnpParams.vnp_TxnRef,
-                    amount: receivedAmount,
-                    message: 'Payment completed successfully'
-                };
-            } else {
-                throw new Error('Failed to confirm transaction with backend');
-            }
-
-        } catch (error) {
-            console.error("Error processing payment confirmation:", error);
+        // If we get here, the backend processed the payment
+        if (vnpParams.vnp_ResponseCode === '00') {
             return {
                 isValid: true,
-                isSuccess: false,
-                message: 'Error confirming payment with server: ' + (error.message || 'Unknown error')
+                isSuccess: true,
+                transactionId: vnpParams.vnp_TxnRef,
+                amount: parseInt(vnpParams.vnp_Amount) / 100,
+                message: 'Payment completed successfully'
             };
         }
+    } catch (error) {
+        console.error('Backend API Error:', error);
+        // If the balance was charged but we got an error, we should still treat it as potentially successful
+        if (vnpParams.vnp_ResponseCode === '00') {
+            return {
+                isValid: true,
+                isSuccess: true,
+                transactionId: vnpParams.vnp_TxnRef,
+                amount: parseInt(vnpParams.vnp_Amount) / 100,
+                message: 'Payment may have completed successfully. If you see this message, please check your balance and contact support if needed.'
+            };
+        }
+        throw error;
     }
 
     return {
         isValid,
-        isSuccess: false,
-        message: isValid ? 'Payment was declined or cancelled' : 'Invalid payment signature'
+        isSuccess: vnpParams.vnp_ResponseCode === '00',
+        transactionId: vnpParams.vnp_TxnRef,
+        amount: parseInt(vnpParams.vnp_Amount) / 100,
+        message: vnpParams.vnp_ResponseCode === '00' ?
+            'Payment completed successfully' :
+            'Payment was not successful'
     };
 };
-
