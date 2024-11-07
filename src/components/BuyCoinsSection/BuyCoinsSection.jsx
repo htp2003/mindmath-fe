@@ -18,13 +18,11 @@ const BuyCoinsSection = () => {
     const [error, setError] = useState(null);
     const [transactionData, setTransactionData] = useState(null);
 
-    // Xử lý payment return khi quay lại từ VNPay
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const vnpParams = {};
         let hasVnpParams = false;
 
-        // Kiểm tra xem có params từ VNPay không
         for (const [key, value] of urlParams.entries()) {
             if (key.startsWith('vnp_')) {
                 vnpParams[key] = value;
@@ -33,31 +31,32 @@ const BuyCoinsSection = () => {
         }
 
         if (hasVnpParams) {
-            // Log trước khi xử lý
             console.log('Starting payment return handling...');
             console.log('URL Params:', vnpParams);
 
-            const result = handlePaymentReturn(vnpParams);
-
-            // Log kết quả
-            console.log('Payment Result:', result);
-
-            if (result.isValid && result.isSuccess) {
-                alert('Payment successful!');
-            } else {
-                // Log chi tiết hơn về lỗi
-                console.log('Payment validation failed:', {
-                    isValid: result.isValid,
-                    isSuccess: result.isSuccess,
-                    message: result.message
+            handlePaymentReturn(vnpParams)
+                .then((result) => {
+                    if (result.isValid && result.isSuccess) {
+                        alert('Payment successful!');
+                    } else {
+                        console.log('Payment validation failed:', {
+                            isValid: result.isValid,
+                            isSuccess: result.isSuccess,
+                            message: result.message
+                        });
+                        alert('Payment failed: ' + result.message);
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error handling payment return:', error);
+                    alert('An error occurred during the payment process. Please try again later.');
+                })
+                .finally(() => {
+                    // Delay removing the query params to allow the user to see the alert
+                    setTimeout(() => {
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }, 2000);
                 });
-                alert('Payment failed: ' + result.message);
-            }
-
-            // Delay việc xóa query params
-            setTimeout(() => {
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }, 2000); // Delay 2 giây
         }
     }, []);
 
