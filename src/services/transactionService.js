@@ -139,32 +139,15 @@ export const handlePaymentReturn = async (queryParams) => {
 
     if (isValid && vnpParams.vnp_ResponseCode === '00') {
         try {
-            // Kiểm tra xem giao dịch đã được lưu trong localStorage chưa
-            const pendingTransaction = JSON.parse(localStorage.getItem('pendingTransaction'));
-            if (pendingTransaction && pendingTransaction.amount === parseInt(vnpParams.vnp_Amount) / 100) {
-                // Gọi API để đánh dấu giao dịch là thành công
-                await axios.get(`${API_URL}/transactions/ReturnUrl`, {
-                    params: {
-                        vnp_Amount: vnpParams.vnp_Amount,
-                        vnp_Command: 'pay',
-                        vnp_CreateDate: vnpParams.vnp_CreateDate,
-                        vnp_CurrCode: vnpParams.vnp_CurrCode,
-                        vnp_IpAddr: vnpParams.vnp_IpAddr,
-                        vnp_Locale: vnpParams.vnp_Locale,
-                        vnp_OrderInfo: vnpParams.vnp_OrderInfo,
-                        vnp_OrderType: vnpParams.vnp_OrderType,
-                        vnp_ReturnUrl: vnpParams.vnp_ReturnUrl,
-                        vnp_TmnCode: vnpParams.vnp_TmnCode,
-                        vnp_TxnRef: vnpParams.vnp_TxnRef,
-                        vnp_Version: vnpParams.vnp_Version,
-                        vnp_SecureHash: vnpParams.vnp_SecureHash
-                    }
-                });
+            // Tìm giao dịch trong hệ thống dựa trên vnp_TxnRef
+            const transactionResponse = await axios.get(`${API_URL}/transactions?vnp_TxnRef=${vnpParams.vnp_TxnRef}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+            });
+            const transaction = transactionResponse.data[0];
 
-                // Xóa thông tin giao dịch đang chờ từ localStorage
-                localStorage.removeItem('pendingTransaction');
-
-                console.log("Transaction marked as successful");
+            if (transaction && transaction.amount === parseInt(vnpParams.vnp_Amount) / 100) {
+                // Cập nhật trạng thái giao dịch thành công
+                await updateTransactionStatus(transaction.id, 'SUCCESS');
                 return {
                     isValid,
                     isSuccess: true,
@@ -201,4 +184,20 @@ export const handlePaymentReturn = async (queryParams) => {
             message: 'Payment failed: ' + (vnpParams.vnp_ResponseCode !== '00' ? vnpParams.vnp_ResponseCode : 'Invalid response')
         };
     }
-}
+};
+export const updateTransactionStatus = async (transactionId, status) => {
+    try {
+        const token = localStorage.getItem("token");
+        const response = await axios.put(
+            `${API_URL}/transactions/${transactionId}/status`,
+            { status },
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+        return response.data;
+    } catch (error) {
+        console.error("Error updating transaction status:", error);
+        throw error;
+    }
+};
