@@ -139,36 +139,66 @@ export const handlePaymentReturn = async (queryParams) => {
 
     if (isValid && vnpParams.vnp_ResponseCode === '00') {
         try {
-            // Call the additional API endpoint to mark the transaction as successful
-            await axios.get(`${API_URL}/transactions/ReturnUrl`, {
-                params: {
-                    vnp_Amount: vnpParams.vnp_Amount,
-                    vnp_Command: 'pay',
-                    vnp_CreateDate: vnpParams.vnp_CreateDate,
-                    vnp_CurrCode: vnpParams.vnp_CurrCode,
-                    vnp_IpAddr: vnpParams.vnp_IpAddr,
-                    vnp_Locale: vnpParams.vnp_Locale,
-                    vnp_OrderInfo: vnpParams.vnp_OrderInfo,
-                    vnp_OrderType: vnpParams.vnp_OrderType,
-                    vnp_ReturnUrl: vnpParams.vnp_ReturnUrl,
-                    vnp_TmnCode: vnpParams.vnp_TmnCode,
-                    vnp_TxnRef: vnpParams.vnp_TxnRef,
-                    vnp_Version: vnpParams.vnp_Version,
-                    vnp_SecureHash: vnpParams.vnp_SecureHash
-                }
-            });
+            // Kiểm tra xem giao dịch đã được lưu trong localStorage chưa
+            const pendingTransaction = JSON.parse(localStorage.getItem('pendingTransaction'));
+            if (pendingTransaction && pendingTransaction.amount === parseInt(vnpParams.vnp_Amount) / 100) {
+                // Gọi API để đánh dấu giao dịch là thành công
+                await axios.get(`${API_URL}/transactions/ReturnUrl`, {
+                    params: {
+                        vnp_Amount: vnpParams.vnp_Amount,
+                        vnp_Command: 'pay',
+                        vnp_CreateDate: vnpParams.vnp_CreateDate,
+                        vnp_CurrCode: vnpParams.vnp_CurrCode,
+                        vnp_IpAddr: vnpParams.vnp_IpAddr,
+                        vnp_Locale: vnpParams.vnp_Locale,
+                        vnp_OrderInfo: vnpParams.vnp_OrderInfo,
+                        vnp_OrderType: vnpParams.vnp_OrderType,
+                        vnp_ReturnUrl: vnpParams.vnp_ReturnUrl,
+                        vnp_TmnCode: vnpParams.vnp_TmnCode,
+                        vnp_TxnRef: vnpParams.vnp_TxnRef,
+                        vnp_Version: vnpParams.vnp_Version,
+                        vnp_SecureHash: vnpParams.vnp_SecureHash
+                    }
+                });
 
-            console.log("Transaction marked as successful");
+                // Xóa thông tin giao dịch đang chờ từ localStorage
+                localStorage.removeItem('pendingTransaction');
+
+                console.log("Transaction marked as successful");
+                return {
+                    isValid,
+                    isSuccess: true,
+                    transactionId: vnpParams.vnp_TxnRef,
+                    amount: parseInt(vnpParams.vnp_Amount) / 100,
+                    message: vnpParams.vnp_OrderInfo
+                };
+            } else {
+                console.error("Pending transaction not found or amount mismatch");
+                return {
+                    isValid,
+                    isSuccess: false,
+                    transactionId: vnpParams.vnp_TxnRef,
+                    amount: parseInt(vnpParams.vnp_Amount) / 100,
+                    message: 'Payment failed: Pending transaction not found or amount mismatch'
+                };
+            }
         } catch (error) {
             console.error("Error marking transaction as successful:", error);
+            return {
+                isValid,
+                isSuccess: false,
+                transactionId: vnpParams.vnp_TxnRef,
+                amount: parseInt(vnpParams.vnp_Amount) / 100,
+                message: 'Payment failed: ' + error.message
+            };
         }
+    } else {
+        return {
+            isValid,
+            isSuccess: false,
+            transactionId: vnpParams.vnp_TxnRef,
+            amount: parseInt(vnpParams.vnp_Amount) / 100,
+            message: 'Payment failed: ' + (vnpParams.vnp_ResponseCode !== '00' ? vnpParams.vnp_ResponseCode : 'Invalid response')
+        };
     }
-
-    return {
-        isValid,
-        isSuccess: vnpParams.vnp_ResponseCode === '00',
-        transactionId: vnpParams.vnp_TxnRef,
-        amount: parseInt(vnpParams.vnp_Amount) / 100,
-        message: vnpParams.vnp_OrderInfo
-    };
-};
+}
