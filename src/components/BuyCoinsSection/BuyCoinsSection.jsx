@@ -39,11 +39,7 @@ const BuyCoinsSection = () => {
                     if (result.isValid && result.isSuccess) {
                         alert('Payment successful!');
                     } else {
-                        console.log('Payment validation failed:', {
-                            isValid: result.isValid,
-                            isSuccess: result.isSuccess,
-                            message: result.message
-                        });
+                        console.log('Payment validation failed:', result);
                         alert('Payment failed: ' + result.message);
                     }
                 })
@@ -57,6 +53,14 @@ const BuyCoinsSection = () => {
                         window.history.replaceState({}, document.title, window.location.pathname);
                     }, 2000);
                 });
+        } else {
+            // Kiểm tra và hiển thị thông tin giao dịch đang chờ
+            const pendingTransaction = JSON.parse(localStorage.getItem('pendingTransaction'));
+            if (pendingTransaction) {
+                setSelectedPackage(COIN_PACKAGES.find(pkg => pkg.price === pendingTransaction.amount));
+                setCustomAmount(pendingTransaction.coins.toString());
+                setTransactionData(pendingTransaction);
+            }
         }
     }, []);
 
