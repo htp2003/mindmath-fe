@@ -36,46 +36,37 @@ const BuyCoinsSection = () => {
                 setLoading(true);
                 try {
                     console.log('Starting payment return handling...');
-                    // Log the pending transaction data
-                    const pendingTransaction = localStorage.getItem('pendingTransaction');
-                    console.log('Pending Transaction:', pendingTransaction);
 
-                    // Parse VNPay amount (divided by 100 as VNPay amounts are in cents)
-                    const vnpayAmount = parseInt(vnpParams.vnp_Amount) / 100;
-                    console.log('VNPay Amount:', vnpayAmount);
+                    // Simple check for successful VNPay response first
+                    if (vnpParams.vnp_ResponseCode === '00') {
+                        const result = await handlePaymentReturn(vnpParams);
+                        console.log('Payment Return Result:', result);
 
-                    if (pendingTransaction) {
-                        const parsedTransaction = JSON.parse(pendingTransaction);
-                        console.log('Parsed Pending Transaction:', parsedTransaction);
-                        console.log('Amount Match:', parsedTransaction.amount === vnpayAmount);
+                        // If the API call was successful, show success
+                        if (result.isSuccess) {
+                            setSuccess(true);
+                            setError(null);
+                            localStorage.removeItem('pendingTransaction');
+
+                            // Reload the page after a delay to refresh balance
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                            return;
+                        }
                     }
 
-                    const result = await handlePaymentReturn(vnpParams);
-                    console.log('Payment Return Result:', result);
+                    // If we get here, show error
+                    setError('Payment verification failed. If your balance was charged, please contact support.');
+                    setSuccess(false);
 
-                    // Modified success condition
-                    if (result.isValid && vnpParams.vnp_ResponseCode === '00') {
-                        setSuccess(true);
-                        setError(null);
-                        localStorage.removeItem('pendingTransaction');
-
-                        // Add a small delay before redirecting or updating UI
-                        setTimeout(() => {
-                            // Optionally refresh the page or redirect
-                            window.location.reload();
-                        }, 2000);
-                    } else {
-                        console.log('Payment validation failed:', result);
-                        setError(result.message || 'Payment verification failed');
-                        setSuccess(false);
-                    }
                 } catch (error) {
                     console.error('Error handling payment return:', error);
                     setError('An error occurred during payment verification. If your balance was charged, please contact support.');
                     setSuccess(false);
                 } finally {
                     setLoading(false);
-                    // Clean up URL params after a short delay
+                    // Clean up URL params after a delay
                     setTimeout(() => {
                         window.history.replaceState({}, document.title, window.location.pathname);
                     }, 2000);
