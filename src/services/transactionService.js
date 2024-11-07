@@ -101,6 +101,7 @@ const testSignatureCreation = () => {
     console.log('Testing with sample data:');
     createSignature(sampleParams, VNPAY_CONFIG.hashSecret);
 };
+
 export const createTransaction = async (userId, amount, description) => {
     try {
         const token = localStorage.getItem("token");
@@ -131,9 +132,37 @@ export const createTransaction = async (userId, amount, description) => {
     }
 };
 
+
 // Handle payment return with proper validation
-export const handlePaymentReturn = (queryParams) => {
+export const handlePaymentReturn = async (queryParams) => {
     const { isValid, vnpParams } = verifyVNPayResponse(queryParams);
+
+    if (isValid && vnpParams.vnp_ResponseCode === '00') {
+        try {
+            // Call the additional API endpoint to mark the transaction as successful
+            await axios.get(`${API_URL}/transactions/ReturnUrl`, {
+                params: {
+                    vnp_Amount: vnpParams.vnp_Amount,
+                    vnp_Command: 'pay',
+                    vnp_CreateDate: vnpParams.vnp_CreateDate,
+                    vnp_CurrCode: vnpParams.vnp_CurrCode,
+                    vnp_IpAddr: vnpParams.vnp_IpAddr,
+                    vnp_Locale: vnpParams.vnp_Locale,
+                    vnp_OrderInfo: vnpParams.vnp_OrderInfo,
+                    vnp_OrderType: vnpParams.vnp_OrderType,
+                    vnp_ReturnUrl: vnpParams.vnp_ReturnUrl,
+                    vnp_TmnCode: vnpParams.vnp_TmnCode,
+                    vnp_TxnRef: vnpParams.vnp_TxnRef,
+                    vnp_Version: vnpParams.vnp_Version,
+                    vnp_SecureHash: vnpParams.vnp_SecureHash
+                }
+            });
+
+            console.log("Transaction marked as successful");
+        } catch (error) {
+            console.error("Error marking transaction as successful:", error);
+        }
+    }
 
     return {
         isValid,
