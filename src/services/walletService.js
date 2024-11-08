@@ -18,7 +18,10 @@ export const getTransactionHistory = async (userId) => {
     try {
         const token = localStorage.getItem("token");
         const response = await axios.get(`${API_URL}/transactions/${userId}`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            params: {
+                pageSize: 20, // Thêm tham số pageSize vào đây
+            },
         });
         return response.data;
     } catch (error) {
