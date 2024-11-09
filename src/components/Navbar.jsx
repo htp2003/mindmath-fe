@@ -118,8 +118,7 @@ const Navbar = () => {
       <li className="list-none">
         <Link
           to={to}
-          className={`flex items-center px-4 py-2 rounded-lg ${isActive ? "bg-blue-100 text-blue-700" : "hover:bg-blue-50"
-            }`}
+          className={`flex items-center px-4 py-2 rounded-lg ${isActive ? "bg-blue-100 text-blue-700" : "hover:bg-blue-50"}`}
         >
           <Icon size={18} className="mr-2" />
           {children}
@@ -128,7 +127,6 @@ const Navbar = () => {
     );
   };
 
-  // Function to get initials from user name
   const getInitials = (name) => {
     if (!name) return "U";
     return name
@@ -143,18 +141,18 @@ const Navbar = () => {
     if (balance !== null) {
       return (
         <div className="flex items-center">
-          <Wallet size={16} className="mr-1 text-gray-600" /> {/* Icon ví */}
+          <Wallet size={16} className="mr-1 text-gray-600" />
           <span className="text-sm text-gray-600">
-            ${balance} {/* Chỉ hiển thị số dư */}
+            ${balance}
           </span>
         </div>
       );
     }
-    return null; // Hoặc có thể hiển thị một loading spinner
+    return null;
   };
 
   if (!user) {
-    return null; // hoặc render một skeleton/loading state
+    return null;
   }
 
   return (
@@ -194,7 +192,7 @@ const Navbar = () => {
                         <p className="text-sm font-medium text-gray-700">
                           {user.name || user.Fullname}
                         </p>
-                        {renderBalanceIcon()} {/* Hiển thị balance bên dưới tên người dùng */}
+                        {renderBalanceIcon()}
                       </div>
                     </div>
                   </button>
@@ -237,14 +235,42 @@ const Navbar = () => {
           </div>
         </div>
       </div>
-      {/* Menu Mobile */}
+      {/* Updated Mobile Menu */}
       {isMenuOpen && (
-        <div className="sm:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1">
+        <div className="sm:hidden bg-white border-t border-gray-200">
+          <div className="px-4 pt-2 pb-3 space-y-1">
+            {/* User Profile Section */}
+            <div className="py-4 border-b border-gray-200">
+              <div className="flex items-center">
+                {renderAvatar('large')}
+                <div className="ml-3">
+                  <p className="text-base font-medium text-gray-800">
+                    {user.name || user.Fullname}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {user.email || user.Email}
+                  </p>
+                  {renderBalanceIcon()}
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation Links */}
             <NavLink to="/" icon={Home}>Home</NavLink>
             <NavLink to="/create" icon={Video}>Create</NavLink>
-            <NavLink to="/videos" icon={BookOpen}>Videos</NavLink>
             <NavLink to="/user-dashboard" icon={Wallet}>Dashboard</NavLink>
+            <NavLink to="/leaderboard" icon={BookOpen}>Leaderboard</NavLink>
+
+            {/* Additional Links */}
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <NavLink to="/profile" icon={User}>Profile</NavLink>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center px-4 py-2 text-base text-gray-700 hover:bg-gray-50 rounded-lg"
+              >
+                <LogOut size={18} className="mr-2" /> Sign out
+              </button>
+            </div>
           </div>
         </div>
       )}
