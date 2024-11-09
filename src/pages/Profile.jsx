@@ -132,24 +132,22 @@ const Profile = () => {
         fullname,
         email,
         phoneNumber,
-        avatar
+        avatar: avatar, // new avatar if selected
+        currentAvatarUrl: currentAvatarUrl // current avatar URL if no new avatar
       };
 
       const result = await updateUserProfile(userData);
 
       if (result.success) {
-        // Update các trường từ response API
         setFullname(result.fullname || "");
         setEmail(result.email || "");
         setPhoneNumber(result.phoneNumber || "");
 
-        // Update avatar
         const newAvatarUrl = result.avatar || result.Avatar;
         if (newAvatarUrl && newAvatarUrl.includes('mindmath.blob.core.windows.net')) {
           setCurrentAvatarUrl(newAvatarUrl);
           setAvatarPreview(newAvatarUrl);
 
-          // Dispatch custom event để thông báo avatar đã thay đổi
           const avatarUpdateEvent = new CustomEvent('avatarUpdate', {
             detail: { avatarUrl: newAvatarUrl }
           });
@@ -157,7 +155,7 @@ const Profile = () => {
         }
 
         alert("Profile updated successfully!");
-        setAvatar(null); // Clear file input
+        setAvatar(null);
       }
     } catch (err) {
       console.error("Error updating profile:", err);
@@ -166,6 +164,7 @@ const Profile = () => {
       setSubmitLoading(false);
     }
   };
+
   useEffect(() => {
     if (newPassword || confirmPassword) {
       validatePasswords(newPassword, confirmPassword);

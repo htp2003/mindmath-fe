@@ -245,11 +245,32 @@ export const updateUserProfile = async (userData) => {
     formData.append('email', userData.email);
     formData.append('phoneNumber', userData.phoneNumber);
 
-    if (userData.avatar) {
+    // If new avatar is provided, use it
+    if (userData.avatar instanceof File) {
       formData.append('File', userData.avatar);
     }
+    // If keeping current avatar, need to fetch it and convert to File
+    else if (userData.currentAvatarUrl) {
+      try {
+        const response = await fetch(userData.currentAvatarUrl);
+        const blob = await response.blob();
+        const fileName = userData.currentAvatarUrl.split('/').pop() || 'current-avatar.jpg';
+        const avatarFile = new File([blob], fileName, { type: blob.type });
+        formData.append('File', avatarFile);
+      } catch (error) {
+        console.error("Error converting current avatar to file:", error);
+        // If fail to get current avatar, create an empty avatar
+        const emptyBlob = new Blob([''], { type: 'image/jpeg' });
+        const emptyFile = new File([emptyBlob], 'empty-avatar.jpg', { type: 'image/jpeg' });
+        formData.append('File', emptyFile);
+      }
+    } else {
+      // If no avatar at all, create an empty avatar
+      const emptyBlob = new Blob([''], { type: 'image/jpeg' });
+      const emptyFile = new File([emptyBlob], 'empty-avatar.jpg', { type: 'image/jpeg' });
+      formData.append('File', emptyFile);
+    }
 
-    // 1. Update profile
     const response = await fetch(`${API_TOKEN_URL}/users/${userId}`, {
       method: 'PUT',
       headers: {
@@ -263,7 +284,6 @@ export const updateUserProfile = async (userData) => {
       throw new Error(`Failed to update profile: ${errorText}`);
     }
 
-    // 2. Get updated user info
     const updatedUserData = await getCurrentUserInfo();
     return {
       success: true,
