@@ -16,35 +16,68 @@ const BuyCoinsSection = () => {
     const [customAmount, setCustomAmount] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [transactionData, setTransactionData] = useState(null);
+    const [success, setSuccess] = useState(false);
+    const [processedTransactions] = useState(new Set()); // Track processed transactions
 
-    // Xử lý payment return khi quay lại từ VNPay
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const vnpParams = {};
-        let hasVnpParams = false;
+        const handlePaymentCallback = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const vnpParams = {};
+            let hasVnpParams = false;
 
-        // Kiểm tra xem có params từ VNPay không
-        for (const [key, value] of urlParams.entries()) {
-            if (key.startsWith('vnp_')) {
-                vnpParams[key] = value;
-                hasVnpParams = true;
+            for (const [key, value] of urlParams.entries()) {
+                if (key.startsWith('vnp_')) {
+                    vnpParams[key] = value;
+                    hasVnpParams = true;
+                }
             }
-        }
 
-        if (hasVnpParams) {
-            const result = handlePaymentReturn(vnpParams);
-            if (result.isValid && result.isSuccess) {
-                // Hiển thị thông báo thành công
-                alert('Payment successful!');
-            } else {
-                // Hiển thị thông báo thất bại
-                alert('Payment failed: ' + result.message);
+            // Only process if we have VNPay params and haven't processed this transaction yet
+            if (hasVnpParams && vnpParams.vnp_TxnRef && !processedTransactions.has(vnpParams.vnp_TxnRef)) {
+                setLoading(true);
+                try {
+                    console.log('Starting payment return handling...');
+
+                    // Add transaction to processed set before handling
+                    processedTransactions.add(vnpParams.vnp_TxnRef);
+
+                    if (vnpParams.vnp_ResponseCode === '00') {
+                        const result = await handlePaymentReturn(vnpParams);
+                        console.log('Payment Return Result:', result);
+
+                        if (result.isSuccess) {
+                            setSuccess(true);
+                            setError(null);
+                            localStorage.removeItem('pendingTransaction');
+
+                            // Use navigate instead of reload to prevent infinite loop
+                            setTimeout(() => {
+                                navigate('/user-dashboard', { replace: true });
+                            }, 2000);
+                            return;
+                        }
+                    }
+
+                    setError('Payment verification failed. If your balance was charged, please contact support.');
+                    setSuccess(false);
+
+                } catch (error) {
+                    console.error('Error handling payment return:', error);
+                    setError('An error occurred during payment verification.');
+                    setSuccess(false);
+                } finally {
+                    setLoading(false);
+                    // Clean up URL params immediately using navigate
+                    navigate('/user-dashboard', {
+                        replace: true,
+                        state: { fromPayment: true }
+                    });
+                }
             }
-            // Xóa query params
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-    }, []);
+        };
+
+        handlePaymentCallback();
+    }, []); // Empty dependency array since we only want this to run once
 
     const handlePackageSelect = (pkg) => {
         setSelectedPackage(pkg);
@@ -103,6 +136,19 @@ const BuyCoinsSection = () => {
 
     return (
         <div className="container mx-auto p-4">
+            {loading && (
+                <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-4">
+                    <span className="block sm:inline">Processing payment...</span>
+                </div>
+            )}
+
+            {success && (
+                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
+                    <strong className="font-bold">Success!</strong>
+                    <span className="block sm:inline"> Payment completed successfully.</span>
+                </div>
+            )}
+
             {error && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
                     <strong className="font-bold">Error!</strong>

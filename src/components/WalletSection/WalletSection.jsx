@@ -71,15 +71,23 @@ const WalletSection = () => {
                         <tbody>
                             {transactions.map((transaction, index) => (
                                 <tr key={index}>
-                                    <td>{new Date(transaction.date).toLocaleDateString()}</td>
+                                    <td>{new Date(transaction.createdAt).toLocaleDateString('vi-VN', {
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}</td>
                                     <td>{transaction.description}</td>
                                     <td className={transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}>
                                         ${transaction.amount}
                                     </td>
                                     <td>
-                                        <span className={`px-2 py-1 rounded-full text-xs ${transaction.status === 'completed'
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-yellow-100 text-yellow-800'
+                                        <span className={`px-2 py-1 rounded-full text-xs ${transaction.status === 'Success'
+                                                ? 'bg-green-100 text-green-800'
+                                                : transaction.status === 'Failed'
+                                                    ? 'bg-red-100 text-red-800'
+                                                    : 'bg-yellow-100 text-yellow-800'
                                             }`}>
                                             {transaction.status}
                                         </span>

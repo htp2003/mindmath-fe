@@ -1,99 +1,274 @@
-// import React, { useState, useEffect } from 'react';
-// import { fetchVideoHistory } from '../../services/videoService';
+import React, { useState, useEffect } from "react";
+import {
+    getSubjects,
+    getChapters,
+    getTopics,
+    getProblemTypes,
+    getInputParam,
+    getSolution,
+} from "../../services/videoService";
+import { getCurrentUser } from "../../services/authServices";
+import VideoPlayer from "../VideoPlayer/VideoPlayer";
+import { Input } from 'antd';
 
-// const VideoHistory = () => {
-//     const [loading, setLoading] = useState(true);
-//     const [error, setError] = useState(null);
-//     const [videoHistory, setVideoHistory] = useState([]);
-//     const [expandedVideo, setExpandedVideo] = useState(null);
+const VideoHistory = () => {
+    const [userId, setUserId] = useState(null);
+    const [subjects, setSubjects] = useState([]);
+    const [chapters, setChapters] = useState([]);
+    const [topics, setTopics] = useState([]);
+    const [problemTypes, setProblemTypes] = useState([]);
+    const [inputParams, setInputParams] = useState([]);
+    const [solutionLink, setSolutionLink] = useState("");
 
-//     useEffect(() => {
-//         loadVideoHistory();
-//     }, []);
+    const [selectedSubject, setSelectedSubject] = useState(null);
+    const [selectedChapter, setSelectedChapter] = useState(null);
+    const [selectedTopic, setSelectedTopic] = useState(null);
+    const [selectedProblemType, setSelectedProblemType] = useState(null);
+    const [videoUrl, setVideoUrl] = useState("");
+    // Retrieve user ID on component mount
+    useEffect(() => {
+        const user = getCurrentUser();
+        if (user) {
+            setUserId(user.id);
+        }
+    }, []);
 
-//     const loadVideoHistory = async () => {
-//         try {
-//             setLoading(true);
-//             const userId = localStorage.getItem("userId"); // Adjust based on how you store userId
-//             const videos = await fetchVideoHistory(userId);
-//             setVideoHistory(videos);
-//         } catch (error) {
-//             setError('Failed to load video history');
-//             console.error('Error loading video history:', error);
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
+    useEffect(() => {
+        const fetchSubjects = async () => {
+            try {
+                const data = await getSubjects();
+                setSubjects(data);
+            } catch (error) {
+                console.error("Failed to fetch subjects:", error);
+            }
+        };
+        fetchSubjects();
+    }, []);
 
-//     if (loading) {
-//         return (
-//             <div className="flex items-center justify-center h-64">
-//                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-//             </div>
-//         );
-//     }
+    const handleSubjectClick = async (subjectId) => {
+        setSelectedSubject(subjectId);
+        setSelectedChapter(null);
+        setChapters([]);
+        setTopics([]);
+        setProblemTypes([]);
+        setInputParams([]);
+        setSolutionLink("");
+        try {
+            const data = await getChapters(subjectId);
+            setChapters(data);
+        } catch (error) {
+            console.error("Failed to fetch chapters:", error);
+        }
+    };
 
-//     if (error) {
-//         return (
-//             <div className="text-red-500 text-center p-4">
-//                 {error}
-//             </div>
-//         );
-//     }
+    const handleChapterClick = async (chapterId) => {
+        setSelectedChapter(chapterId);
+        setSelectedTopic(null);
+        setTopics([]);
+        setProblemTypes([]);
+        setInputParams([]);
+        setSolutionLink("");
+        try {
+            const data = await getTopics(chapterId);
+            setTopics(data);
+        } catch (error) {
+            console.error("Failed to fetch topics:", error);
+        }
+    };
 
-//     return (
-//         <div className="space-y-4">
-//             <h2 className="text-2xl font-bold mb-4">Your Video History</h2>
+    const handleTopicClick = async (topicId) => {
+        setSelectedTopic(topicId);
+        setSelectedProblemType(null);
+        setProblemTypes([]);
+        setInputParams([]);
+        setSolutionLink("");
+        try {
+            const data = await getProblemTypes(topicId);
+            setProblemTypes(data);
+        } catch (error) {
+            console.error("Failed to fetch problem types:", error);
+        }
+    };
 
-//             {videoHistory.length === 0 ? (
-//                 <div className="text-center py-8 text-gray-500">
-//                     No videos found in your history
-//                 </div>
-//             ) : (
-//                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-//                     {videoHistory.map((video, index) => (
-//                         <div
-//                             key={video.inputParameterId}
-//                             className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-gray-200"
-//                         >
-//                             <div className="space-y-2">
-//                                 <h3 className="font-semibold text-lg">
-//                                     {video.subject} - {video.chapter}
-//                                 </h3>
-//                                 <div className="text-sm text-gray-600">
-//                                     <p>Topic: {video.topic}</p>
-//                                     <p>Problem Type: {video.problemType}</p>
-//                                     <p>Created: {new Date(video.createdAt).toLocaleDateString()}</p>
-//                                     {video.input && (
-//                                         <p className="truncate">Input: {video.input}</p>
-//                                     )}
-//                                 </div>
+    const handleProblemTypeClick = async (problemTypeId) => {
+        setSelectedProblemType(problemTypeId);
+        setInputParams([]);
+        setSolutionLink("");
+        try {
+            if (userId) {
+                const data = await getInputParam(problemTypeId, userId);
+                setInputParams(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch input parameters:", error);
+        }
+    };
 
-//                                 <button
-//                                     onClick={() => setExpandedVideo(expandedVideo === index ? null : index)}
-//                                     className="w-full mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-//                                 >
-//                                     {expandedVideo === index ? 'Hide Video' : 'Watch Video'}
-//                                 </button>
-//                             </div>
+    const handleInputParamClick = async (inputParameterId) => {
+        try {
+            const data = await getSolution(inputParameterId);
+            setVideoUrl(data.link);
+        } catch (error) {
+            console.error("Failed to fetch solution:", error);
+        }
+    };
 
-//                             {expandedVideo === index && (
-//                                 <div className="mt-4">
-//                                     <video
-//                                         controls
-//                                         className="w-full rounded-lg shadow"
-//                                         src={video.videoUrl}
-//                                     >
-//                                         Your browser does not support the video tag.
-//                                     </video>
-//                                 </div>
-//                             )}
-//                         </div>
-//                     ))}
-//                 </div>
-//             )}
-//         </div>
-//     );
-// };
+    return (
+        <div className="space-y-4 p-4">
+            <h2 className="text-2xl font-bold">Video History</h2>
 
-// export default VideoHistory;
+            {/* Subjects */}
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Subjects</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {subjects.map((subject) => (
+                        <div
+                            key={subject.id}
+                            className={`bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition-colors ${selectedSubject === subject.id ? "bg-gray-100" : ""
+                                }`}
+                            onClick={() => handleSubjectClick(subject.id)}
+                        >
+                            <h3 className="text-lg font-semibold">{subject.name}</h3>
+                            {selectedSubject === subject.id && (
+                                <div className="mt-2">
+                                    <ChevronDownIcon className="w-5 h-5 text-gray-500" />
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Chapters */}
+            {selectedSubject && (
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Chapters</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {chapters.map((chapter) => (
+                            <div
+                                key={chapter.id}
+                                className={`bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition-colors ${selectedChapter === chapter.id ? "bg-gray-100" : ""
+                                    }`}
+                                onClick={() => handleChapterClick(chapter.id)}
+                            >
+                                <h3 className="text-lg font-semibold">{chapter.name}</h3>
+                                {selectedChapter === chapter.id && (
+                                    <div className="mt-2">
+                                        <ChevronDownIcon className="w-5 h-5 text-gray-500" />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Topics */}
+            {selectedChapter && (
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Topics</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {topics.map((topic) => (
+                            <div
+                                key={topic.id}
+                                className={`bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition-colors ${selectedTopic === topic.id ? "bg-gray-100" : ""
+                                    }`}
+                                onClick={() => handleTopicClick(topic.id)}
+                            >
+                                <h3 className="text-lg font-semibold">{topic.name}</h3>
+                                {selectedTopic === topic.id && (
+                                    <div className="mt-2">
+                                        <ChevronDownIcon className="w-5 h-5 text-gray-500" />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Problem Types */}
+            {selectedTopic && (
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Problem Types</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {problemTypes.map((problemType) => (
+                            <div
+                                key={problemType.id}
+                                className={`bg-white rounded-lg shadow-md p-4 cursor-pointer hover:bg-gray-100 transition-colors ${selectedProblemType === problemType.id ? "bg-gray-100" : ""
+                                    }`}
+                                onClick={() => handleProblemTypeClick(problemType.id)}
+                            >
+                                <h3 className="text-lg font-semibold">{problemType.name}</h3>
+                                {selectedProblemType === problemType.id && (
+                                    <div className="mt-2">
+                                        <ChevronDownIcon className="w-5 h-5 text-gray-500" />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Input Parameters */}
+            {inputParams.length > 0 && (
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Input Parameters</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {inputParams.map((inputParam) => (
+                            <div
+                                key={inputParam.id}
+                                className="bg-white rounded-lg shadow-md p-4"
+                            >
+                                <h4 className="text-lg font-semibold">
+                                    {inputParam.input || `Input Param ${inputParam.input}`}
+                                </h4>
+                                <button
+                                    onClick={() => handleInputParamClick(inputParam.id)}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded mt-2 w-full"
+                                >
+                                    View Solution
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Solution */}
+            {solutionLink && (
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Solution</h3>
+                    <div className="bg-white rounded-lg shadow-md p-4">
+                        <a
+                            href={solutionLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline"
+                        >
+                            View Solution
+                        </a>
+                    </div>
+                </div>
+            )}
+            {videoUrl && <VideoPlayer videoUrl={videoUrl} />}
+
+        </div>
+    );
+};
+
+const ChevronDownIcon = () => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={2}
+        stroke="currentColor"
+        className="w-6 h-6"
+    >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+);
+
+export default VideoHistory;
