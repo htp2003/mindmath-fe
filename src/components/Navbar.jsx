@@ -170,7 +170,7 @@ const Navbar = () => {
                 <NavLink to="/" icon={Home}>Home</NavLink>
                 <NavLink to="/create" icon={Video}>Create</NavLink>
                 <NavLink to="/user-dashboard" icon={Wallet}>Dashboard</NavLink>
-                <NavLink to="/leaderboard" icon={BookOpen}>Leaderboard</NavLink>
+
               </ul>
             </div>
           </div>
@@ -259,7 +259,7 @@ const Navbar = () => {
             <NavLink to="/" icon={Home}>Home</NavLink>
             <NavLink to="/create" icon={Video}>Create</NavLink>
             <NavLink to="/user-dashboard" icon={Wallet}>Dashboard</NavLink>
-            <NavLink to="/leaderboard" icon={BookOpen}>Leaderboard</NavLink>
+
 
             {/* Additional Links */}
             <div className="border-t border-gray-200 pt-4 mt-4">
