@@ -7,7 +7,7 @@ import UserDashboard from "./pages/UserDashboard";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/admin/Admindashboard";
 import UserManagement from "./pages/admin/UserManager";
-import CategoryManagement from "./pages/admin/SubjectManagement";
+import SubjectManagement from "./pages/admin/SubjectManagement";
 import Login from "./pages/LoginPage/LoginPage";
 import Register from "./pages/RegisterPage/RegisterPage";
 import ChapterManagement from "./pages/admin/ChapterManagement";
@@ -24,7 +24,6 @@ function App() {
   return (
     <Router>
       <Routes>
-
         {/* Layout cho người dùng */}
         <Route path="/" element={<UserLayout />}>
           <Route index element={<Home />} />
@@ -44,7 +43,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="categories" element={<CategoryManagement />} />
+          <Route path="subjects" element={<SubjectManagement />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="chapters" element={<ChapterManagement />} />
           <Route path="topics" element={<TopicManagement />} />
@@ -71,7 +70,6 @@ function App() {
       </Routes>
       <Toaster />
     </Router>
-
   );
 }
 
