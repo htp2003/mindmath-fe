@@ -8,17 +8,48 @@ import {
   updateProblemType,
   toggleProblemTypeStatus,
 } from "../../services/problemTypeService";
-import { Button, Modal, Input, Select, Table, message } from "antd";
+import {
+  Button,
+  Modal,
+  Input,
+  message,
+  Card,
+  Row,
+  Col,
+  Typography,
+  Space,
+  Tag,
+  Empty,
+  Tooltip,
+  Dropdown,
+  Select,
+  Input as AntInput,
+} from "antd";
+import {
+  PlusOutlined,
+  EditOutlined,
+  EllipsisOutlined,
+  ExclamationCircleOutlined,
+  FilterOutlined,
+} from "@ant-design/icons";
+
+const { Title, Text, Paragraph } = Typography;
+const { Search } = AntInput;
 
 const ProblemTypeManagement = () => {
   const [subjects, setSubjects] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [topics, setTopics] = useState([]);
   const [problemTypes, setProblemTypes] = useState([]);
+  const [filteredProblemTypes, setFilteredProblemTypes] = useState([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
   const [selectedChapterId, setSelectedChapterId] = useState(null);
   const [selectedTopicId, setSelectedTopicId] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState("");
+  const [sortOrder, setSortOrder] = useState("name");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [editingProblemType, setEditingProblemType] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -26,7 +57,7 @@ const ProblemTypeManagement = () => {
     numberOfInputs: 0,
   });
 
-  // Fetch subjects from the API
+  // Existing fetch effects
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
@@ -40,7 +71,6 @@ const ProblemTypeManagement = () => {
     fetchSubjects();
   }, []);
 
-  // Fetch chapters when the selected subject changes
   useEffect(() => {
     const fetchChapters = async () => {
       if (selectedSubjectId) {
@@ -58,7 +88,6 @@ const ProblemTypeManagement = () => {
     fetchChapters();
   }, [selectedSubjectId]);
 
-  // Fetch topics when the selected chapter changes
   useEffect(() => {
     const fetchTopics = async () => {
       if (selectedChapterId) {
@@ -76,23 +105,62 @@ const ProblemTypeManagement = () => {
     fetchTopics();
   }, [selectedChapterId]);
 
-  // Fetch problem types when the selected topic changes
   useEffect(() => {
     const fetchProblemTypes = async () => {
       if (selectedTopicId) {
+        setLoading(true);
         try {
           const data = await getProblemTypesByTopicId(selectedTopicId);
           setProblemTypes(data);
         } catch (error) {
           console.error("Error fetching problem types:", error);
           message.error("Failed to fetch problem types");
+        } finally {
+          setLoading(false);
         }
       } else {
         setProblemTypes([]);
+        setLoading(false);
       }
     };
     fetchProblemTypes();
   }, [selectedTopicId]);
+
+  // Filter and sort effect
+  useEffect(() => {
+    let filtered = [...problemTypes];
+
+    if (searchText) {
+      filtered = filtered.filter(
+        (type) =>
+          type.name.toLowerCase().includes(searchText.toLowerCase()) ||
+          type.description.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(
+        (type) =>
+          (statusFilter === "active" && type.active) ||
+          (statusFilter === "blocked" && !type.active)
+      );
+    }
+
+    filtered.sort((a, b) => {
+      switch (sortOrder) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "nameDesc":
+          return b.name.localeCompare(a.name);
+        case "status":
+          return b.active - a.active;
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredProblemTypes(filtered);
+  }, [problemTypes, searchText, sortOrder, statusFilter]);
 
   const resetForm = () => {
     setFormData({
@@ -106,23 +174,6 @@ const ProblemTypeManagement = () => {
   const handleModalClose = () => {
     setIsModalVisible(false);
     resetForm();
-  };
-
-  const openEditModal = (problemType) => {
-    setEditingProblemType(problemType);
-    setFormData({
-      name: problemType.name,
-      description: problemType.description,
-      numberOfInputs: problemType.numberOfInputs,
-    });
-    setIsModalVisible(true);
-  };
-
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: field === "numberOfInputs" ? Number(value) : value,
-    }));
   };
 
   const handleSubmit = async () => {
@@ -144,7 +195,6 @@ const ProblemTypeManagement = () => {
         message.success("Problem type added successfully!");
       }
 
-      // Refresh problem types list
       const updatedProblemTypes = await getProblemTypesByTopicId(
         selectedTopicId
       );
@@ -160,6 +210,21 @@ const ProblemTypeManagement = () => {
     }
   };
 
+  const confirmStatusToggle = (problemType) => {
+    Modal.confirm({
+      title: `Confirm ${
+        problemType.active ? "Block" : "Activate"
+      } Problem Type`,
+      icon: <ExclamationCircleOutlined />,
+      content: `Are you sure you want to ${
+        problemType.active ? "block" : "activate"
+      } ${problemType.name}?`,
+      okText: "Yes",
+      cancelText: "No",
+      onOk: () => handleToggleProblemTypeStatus(problemType),
+    });
+  };
+
   const handleToggleProblemTypeStatus = async (problemType) => {
     try {
       await toggleProblemTypeStatus(selectedTopicId, problemType.id);
@@ -168,8 +233,6 @@ const ProblemTypeManagement = () => {
           problemType.active ? "blocked" : "reactivated"
         } successfully!`
       );
-
-      // Refresh problem types after status toggle
       const updatedProblemTypes = await getProblemTypesByTopicId(
         selectedTopicId
       );
@@ -180,69 +243,220 @@ const ProblemTypeManagement = () => {
     }
   };
 
+  const getMoreMenu = (problemType) => [
+    {
+      key: "edit",
+      label: "Edit Problem Type",
+      icon: <EditOutlined />,
+      onClick: () => {
+        setEditingProblemType(problemType);
+        setFormData({
+          name: problemType.name,
+          description: problemType.description,
+          numberOfInputs: problemType.numberOfInputs,
+        });
+        setIsModalVisible(true);
+      },
+    },
+    {
+      key: "status",
+      label: problemType.active
+        ? "Block Problem Type"
+        : "Activate Problem Type",
+      icon: <FilterOutlined />,
+      onClick: () => confirmStatusToggle(problemType),
+    },
+  ];
+
+  const ProblemTypeCard = ({ problemType }) => (
+    <Card
+      hoverable
+      className="problem-type-card"
+      actions={[
+        <Tooltip title="Edit Problem Type">
+          <EditOutlined
+            key="edit"
+            onClick={() => {
+              setEditingProblemType(problemType);
+              setFormData({
+                name: problemType.name,
+                description: problemType.description,
+                numberOfInputs: problemType.numberOfInputs,
+              });
+              setIsModalVisible(true);
+            }}
+          />
+        </Tooltip>,
+        <Tag
+          color={problemType.active ? "success" : "error"}
+          style={{ margin: "0 8px", cursor: "pointer" }}
+          onClick={() => confirmStatusToggle(problemType)}
+        >
+          {problemType.active ? "Active" : "Blocked"}
+        </Tag>,
+        <Dropdown
+          menu={{ items: getMoreMenu(problemType) }}
+          placement="bottomRight"
+        >
+          <EllipsisOutlined key="more" />
+        </Dropdown>,
+      ]}
+    >
+      <Card.Meta
+        title={problemType.name}
+        description={
+          <>
+            <Paragraph ellipsis={{ rows: 2 }}>
+              {problemType.description}
+            </Paragraph>
+            <Text type="secondary">Inputs: {problemType.numberOfInputs}</Text>
+          </>
+        }
+      />
+    </Card>
+  );
+
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Problem Type Management</h1>
+    <div className="problem-type-management p-6">
+      {/* Header Section */}
+      <div className="mb-6">
+        <Row gutter={[16, 16]} align="middle" justify="space-between">
+          <Col xs={24} md={6}>
+            <Title level={2} style={{ margin: 0 }}>
+              Problem Type Management
+            </Title>
+          </Col>
+          <Col xs={24} md={18}>
+            <Row gutter={[16, 16]} justify="end">
+              <Col xs={24} md={6}>
+                <Select
+                  style={{ width: "100%" }}
+                  placeholder="Select Subject"
+                  onChange={(value) => {
+                    setSelectedSubjectId(value);
+                    setSelectedChapterId(null);
+                    setSelectedTopicId(null);
+                  }}
+                  value={selectedSubjectId}
+                >
+                  {subjects.map((subject) => (
+                    <Select.Option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col xs={24} md={6}>
+                <Select
+                  style={{ width: "100%" }}
+                  placeholder="Select Chapter"
+                  onChange={(value) => {
+                    setSelectedChapterId(value);
+                    setSelectedTopicId(null);
+                  }}
+                  value={selectedChapterId}
+                  disabled={!selectedSubjectId}
+                >
+                  {chapters.map((chapter) => (
+                    <Select.Option key={chapter.id} value={chapter.id}>
+                      {chapter.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col xs={24} md={6}>
+                <Select
+                  style={{ width: "100%" }}
+                  placeholder="Select Topic"
+                  onChange={setSelectedTopicId}
+                  value={selectedTopicId}
+                  disabled={!selectedChapterId}
+                >
+                  {topics.map((topic) => (
+                    <Select.Option key={topic.id} value={topic.id}>
+                      {topic.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col xs={24} md={4}>
+                <Search
+                  placeholder="Search problem types..."
+                  onChange={(e) => setSearchText(e.target.value)}
+                  allowClear
+                />
+              </Col>
+              <Col xs={12} md={3}>
+                <Select
+                  style={{ width: "100%" }}
+                  placeholder="Sort by"
+                  onChange={(value) => setSortOrder(value)}
+                  value={sortOrder}
+                >
+                  <Select.Option value="name">Name (A-Z)</Select.Option>
+                  <Select.Option value="nameDesc">Name (Z-A)</Select.Option>
+                  <Select.Option value="status">Status</Select.Option>
+                </Select>
+              </Col>
+              <Col xs={12} md={3}>
+                <Select
+                  style={{ width: "100%" }}
+                  placeholder="Filter by status"
+                  onChange={(value) => setStatusFilter(value)}
+                  value={statusFilter}
+                >
+                  <Select.Option value="all">All Status</Select.Option>
+                  <Select.Option value="active">Active</Select.Option>
+                  <Select.Option value="blocked">Blocked</Select.Option>
+                </Select>
+              </Col>
+              <Col xs={24} md={2}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    resetForm();
+                    setIsModalVisible(true);
+                  }}
+                  style={{ width: "100%" }}
+                  disabled={!selectedTopicId}
+                >
+                  Add
+                </Button>
+              </Col>
+            </Row>
+          </Col>
+        </Row>
+      </div>
 
-      <Select
-        placeholder="Select Subject"
-        style={{ width: "100%", marginBottom: 16 }}
-        onChange={(value) => {
-          setSelectedSubjectId(value);
-          setSelectedChapterId(null);
-          setSelectedTopicId(null);
-        }}
-        value={selectedSubjectId}
-      >
-        {subjects.map((subject) => (
-          <Select.Option key={subject.id} value={subject.id}>
-            {subject.name}
-          </Select.Option>
-        ))}
-      </Select>
+      {/* Problem Types Grid */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "50px" }}>
+          Loading problem types...
+        </div>
+      ) : filteredProblemTypes.length > 0 ? (
+        <Row gutter={[16, 16]}>
+          {filteredProblemTypes.map((problemType) => (
+            <Col xs={24} sm={12} lg={8} xl={6} key={problemType.id}>
+              <ProblemTypeCard problemType={problemType} />
+            </Col>
+          ))}
+        </Row>
+      ) : (
+        <Empty
+          description={
+            <span>
+              {selectedTopicId
+                ? `No problem types found. ${
+                    searchText && "Try different search terms."
+                  }`
+                : "Please select a subject, chapter, and topic to view problem types."}
+            </span>
+          }
+        />
+      )}
 
-      <Select
-        placeholder="Select Chapter"
-        style={{ width: "100%", marginBottom: 16 }}
-        onChange={(value) => {
-          setSelectedChapterId(value);
-          setSelectedTopicId(null);
-        }}
-        value={selectedChapterId}
-        disabled={!selectedSubjectId}
-      >
-        {chapters.map((chapter) => (
-          <Select.Option key={chapter.id} value={chapter.id}>
-            {chapter.name}
-          </Select.Option>
-        ))}
-      </Select>
-
-      <Select
-        placeholder="Select Topic"
-        style={{ width: "100%", marginBottom: 16 }}
-        onChange={setSelectedTopicId}
-        value={selectedTopicId}
-        disabled={!selectedChapterId}
-      >
-        {topics.map((topic) => (
-          <Select.Option key={topic.id} value={topic.id}>
-            {topic.name}
-          </Select.Option>
-        ))}
-      </Select>
-
-      <Button
-        type="primary"
-        onClick={() => {
-          resetForm();
-          setIsModalVisible(true);
-        }}
-        disabled={!selectedTopicId}
-      >
-        Add Problem Type
-      </Button>
-
+      {/* Add/Edit Modal */}
       <Modal
         title={
           editingProblemType ? "Edit Problem Type" : "Add New Problem Type"
@@ -250,62 +464,58 @@ const ProblemTypeManagement = () => {
         open={isModalVisible}
         onOk={handleSubmit}
         onCancel={handleModalClose}
+        okText={editingProblemType ? "Update" : "Add"}
       >
-        <Input
-          placeholder="Problem Type Name"
-          value={formData.name}
-          onChange={(e) => handleInputChange("name", e.target.value)}
-          className="mb-4"
-        />
-        <Input
-          placeholder="Description"
-          value={formData.description}
-          onChange={(e) => handleInputChange("description", e.target.value)}
-          className="mb-4"
-        />
-        <Input
-          type="number"
-          placeholder="Number of Inputs"
-          value={formData.numberOfInputs}
-          onChange={(e) => handleInputChange("numberOfInputs", e.target.value)}
-          className="mb-4"
-          min={0}
-        />
+        <Space direction="vertical" size="large" style={{ width: "100%" }}>
+          <div>
+            <Text strong>Problem Type Name</Text>
+            <Input
+              placeholder="Enter problem type name"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <Text strong>Description</Text>
+            <Input.TextArea
+              placeholder="Enter description"
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              rows={4}
+            />
+          </div>
+          <div>
+            <Text strong>Number of Inputs</Text>
+            <Input
+              type="number"
+              placeholder="Enter number of inputs"
+              value={formData.numberOfInputs}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  numberOfInputs: parseInt(e.target.value) || 0,
+                })
+              }
+              min={0}
+            />
+          </div>
+        </Space>
       </Modal>
 
-      <Table dataSource={problemTypes} rowKey="id" className="mt-4">
-        <Table.Column title="Problem Type Name" dataIndex="name" key="name" />
-        <Table.Column
-          title="Description"
-          dataIndex="description"
-          key="description"
-        />
-        <Table.Column
-          title="Number of Inputs"
-          dataIndex="numberOfInputs"
-          key="numberOfInputs"
-        />
-        <Table.Column
-          title="Actions"
-          key="actions"
-          render={(_, problemType) => (
-            <>
-              <Button type="link" onClick={() => openEditModal(problemType)}>
-                Edit
-              </Button>
-              <Button
-                type="link"
-                onClick={() => handleToggleProblemTypeStatus(problemType)}
-                className={
-                  problemType.active ? "text-green-500" : "text-red-500"
-                }
-              >
-                {problemType.active ? "Active" : "Blocked"}
-              </Button>
-            </>
-          )}
-        />
-      </Table>
+      <style jsx>{`
+        .problem-type-card {
+          height: 100%;
+          transition: all 0.3s;
+        }
+        .problem-type-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+      `}</style>
     </div>
   );
 };
