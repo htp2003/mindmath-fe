@@ -174,9 +174,9 @@ const BuyCoinsSection = () => {
                         )}
                         <div className="text-center">
                             <h3 className="text-xl font-bold mb-2">{pkg.coins} Coins</h3>
-                            <p className="text-gray-600 mb-2">{(pkg.price / 1000).toLocaleString()}K VND</p>
+                            <p className="text-gray-600 mb-2">{(pkg.price).toLocaleString()} VND</p>
                             <p className="text-sm text-gray-500">
-                                {((pkg.price / pkg.coins) / 1000).toFixed(1)}K VND/coin
+                                {((pkg.price / pkg.coins)).toFixed(1)}K VND/coin
                             </p>
                         </div>
                     </div>

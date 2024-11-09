@@ -57,7 +57,9 @@ const WalletSection = () => {
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
                 <h2 className="card-title">Wallet Balance</h2>
-                <p className="text-2xl font-bold mb-4">${balance}</p>
+                <p className="text-2xl font-bold mb-4">
+                    ${balance.toLocaleString('vi-VN')}
+                </p>
                 <div className="overflow-x-auto">
                     <table className="table w-full">
                         <thead>
@@ -80,14 +82,14 @@ const WalletSection = () => {
                                     })}</td>
                                     <td>{transaction.description}</td>
                                     <td className={transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}>
-                                        ${transaction.amount}
+                                        ${Math.abs(transaction.amount).toLocaleString('vi-VN')}
                                     </td>
                                     <td>
                                         <span className={`px-2 py-1 rounded-full text-xs ${transaction.status === 'Success'
-                                                ? 'bg-green-100 text-green-800'
-                                                : transaction.status === 'Failed'
-                                                    ? 'bg-red-100 text-red-800'
-                                                    : 'bg-yellow-100 text-yellow-800'
+                                            ? 'bg-green-100 text-green-800'
+                                            : transaction.status === 'Failed'
+                                                ? 'bg-red-100 text-red-800'
+                                                : 'bg-yellow-100 text-yellow-800'
                                             }`}>
                                             {transaction.status}
                                         </span>
